@@ -30,8 +30,9 @@ def read_cv(s: Settings | None) -> tuple[str, str] | None:
 
 
 def recount(s: Settings) -> int:
-    """Give every job scored under the current CV its verdict again from the model's saved facts, without the
-    model (spec section 21.4): after Settings change. Older scores without facts stay. Returns how many."""
+    """Give every job scored under the current rules its verdict again from the model's saved facts, without the
+    model (spec sections 21.4, 23): after Settings change or a new CV. Older scores without facts stay. Returns how
+    many."""
     cv = read_cv(s)
     if cv is None:
         return 0
