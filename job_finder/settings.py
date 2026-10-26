@@ -17,9 +17,9 @@ LANGUAGES = ["English", "Czech", "Slovak", "German", "Polish", "Russian", "Ukrai
 # The "Languages" group of the dictionary: the main skill is guessed among these
 PROGRAMMING_LANGUAGES = ["Python", "Java", "C#/.NET", "C/C++", "Go", "Rust", "JavaScript", "TypeScript", "PHP",
                          "Ruby", "Kotlin", "Swift", "Scala", "R"]
-# Changing any of these changes the scoring rules or the CV, so every job is scored again
-# The model only reads the ads against the CV; the program compares its facts with everything else (spec 21.4)
-SCORING_FIELDS = ("cv_path",)
+# No setting needs the model again: it reads only the ads, the program compares its facts with the profile and the
+# CV in an instant (spec sections 21.4, 23)
+CV_CHANGED = "your CV changed, so the verdicts follow the new version"
 # The profile: what rules a job out (spec 21.1)
 EDUCATION = {"none": "No degree", "studying": "Studying, no degree yet", "bachelor": "Bachelor's",
              "master": "Master's", "phd": "PhD"}
@@ -112,20 +112,6 @@ def missing(s: Settings) -> list[str]:
     return [name for name, is_empty in empty.items() if is_empty]
 
 
-def scoring_changed(old: Settings, new: Settings) -> bool:
-    """Whether the scoring rules or the CV change. Languages count in order (the rules list them so); the CV by the
-    file it points to, not by how its path is spelled."""
-    for name in SCORING_FIELDS:
-        before, after = getattr(old, name), getattr(new, name)
-        if name == "languages":
-            before, after = list(before.items()), list(after.items())
-        elif name == "cv_path":
-            before, after = (os.path.normcase(os.path.abspath(path)) for path in (before, after))
-        if before != after:
-            return True
-    return False
-
-
 def read_cv_text(path: str) -> str:
     """Text of the CV: Markdown and text files as they are, PDF page by page."""
     file = Path(path)
@@ -212,7 +198,7 @@ def sync_cv(s: Settings) -> tuple[Settings, str]:
     changed = has_copy and saved_copy() != text
     s = store_cv(s, text)
     _remember_stamp(s.cv_path, s.cv_stamp)
-    return s, "your CV changed, so all jobs were scored again" if changed else ""
+    return s, CV_CHANGED if changed else ""
 
 
 def skill_pattern(name: str) -> re.Pattern:

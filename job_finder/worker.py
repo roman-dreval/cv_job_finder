@@ -67,7 +67,6 @@ class Worker(QObject):
         self.manual = False  # started by the user (the button, Start search, Save in Settings): a big pass runs too
         self.waiting = 0  # jobs of a big pass that waits for the user (the window offers "Start scoring")
         self.cancelled = False  # the settings were saved during the pass: it stops after the current job
-        self.cv_changed = False  # the CV file was edited during the pass: it stops and starts over
 
     def start(self, manual: bool = False) -> None:
         self.manual, self.cancelled = manual, False
@@ -91,7 +90,7 @@ class Worker(QObject):
 
     def _refresh(self) -> str:
         """One refresh. Returns the final status line."""
-        self.paused = self.model_missing = self.cv_changed = False
+        self.paused = self.model_missing = False
         self.waiting = 0
         s = settings.load()
         if s is None or settings.missing(s):
@@ -111,6 +110,8 @@ class Worker(QObject):
             return _join(f"Can't read your CV: {error}. Check it in Settings", notes)
         if cv_note:
             notes.append(cv_note)
+        if cv_note == settings.CV_CHANGED:
+            recount(s)  # the model's facts about the ads stay: only the verdicts follow the new CV
         cv_hash = scoring_key(s)
         skill_list = s.skills
         if not skill_list:
@@ -151,8 +152,6 @@ class Worker(QObject):
 
         if self.cancelled:
             return _join("Stopped: the settings changed, starting again", notes)
-        if self.cv_changed:
-            return _join("Your CV changed: starting again with the new version", notes)
         if self.paused:
             return _join("Paused while a full-screen app runs; the rest will be scored later", notes)
         suitable = len(db.list_jobs(cv_hash, s.min_score))
@@ -168,10 +167,6 @@ class Worker(QObject):
         self.progress.emit(0, len(todo))
         for done, job in enumerate(todo, 1):
             if self.cancelled:
-                break
-            stamp = settings.file_stamp(s.cv_path)
-            if stamp is not None and stamp != s.cv_stamp:  # the CV file was saved in its own program
-                self.cv_changed = True
                 break
             if self.pause_check():
                 self.paused = True

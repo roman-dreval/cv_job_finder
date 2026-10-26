@@ -1239,6 +1239,18 @@ def test_saving_new_settings_restarts_the_scoring(window, monkeypatch):
     assert passes == [True]  # a new pass with the new settings, big or not: the user agreed to it
 
 
+def test_a_new_cv_gives_new_verdicts_without_scoring_again(window, monkeypatch, tmp_path):
+    verdict_row("a", model_answer(10))  # the CV "Python developer" has the job's skills
+    window.load_rows()
+    assert titles(window) == ["Junior Backend Developer"]
+    other = tmp_path / "other.md"
+    other.write_text("Senior SQL analyst", encoding="utf-8")
+    saving_settings(monkeypatch, settings.store_cv(replace(settings.load(), cv_path=str(other)), "Senior SQL analyst"))
+    monkeypatch.setattr(window, "refresh", lambda manual=False: pytest.fail("the model read only the ads"))
+    window.settings_button.click()
+    assert titles(window) == []  # Stretch now: this CV has none of the skills
+
+
 def test_a_big_scoring_waits_for_a_click(tray_window, monkeypatch):
     messages, passes = [], []
     monkeypatch.setattr(tray_window.tray, "showMessage", lambda *args: messages.append(args[1]))

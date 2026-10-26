@@ -42,9 +42,8 @@ SEARCH_FIELDS = ("city", "remote", "levels", "main_skill", "skills")  # what is 
 
 
 def _search_changed(old: Settings, new: Settings) -> bool:
-    """A new CV or another search (city, remote, levels, skills): a new pass is needed, not only new verdicts."""
-    return settings.scoring_changed(old, new) or any(getattr(old, name) != getattr(new, name)
-                                                     for name in SEARCH_FIELDS)
+    """Another search (city, remote, levels, skills): a new pass is needed, not only new verdicts."""
+    return any(getattr(old, name) != getattr(new, name) for name in SEARCH_FIELDS)
 
 
 def _label(name: str = "") -> QLabel:
@@ -1115,7 +1114,7 @@ class MainWindow(QMainWindow):
                                   QSystemTrayIcon.Information, 10000)
         if self.worker.paused:
             self.retry_timer.start()  # a full-screen game started during scoring: the rest comes later
-        if self.refresh_again or self.worker.cv_changed:  # new settings or an edited CV: start over at once
+        if self.refresh_again:  # a new search was saved during the pass: start over at once
             self.refresh_again = False
             self.refresh(manual=True)
 
@@ -1153,8 +1152,8 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
         new = settings.load()
-        if old is not None and new is not None and not settings.scoring_changed(old, new):
-            recount(new)  # the profile, place or levels changed: new verdicts in an instant, without the model
+        if old is not None and new is not None:
+            recount(new)  # the profile, the place or the CV changed: new verdicts in an instant, without the model
         self.load_rows()
         if self.cv_window is not None and self.cv_window.isVisible():
             self.cv_window.reload()  # the CV file may have changed; a closed window is read when it opens

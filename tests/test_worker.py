@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from dataclasses import replace
 from datetime import date, timedelta
@@ -184,22 +185,25 @@ def test_cancel_stops_after_the_current_job(setup, monkeypatch):
     assert len(calls) == 1 and setup == [True]  # the model is released
 
 
-def test_an_edited_cv_file_starts_over(setup, monkeypatch):
-    w = worker.Worker()
+def test_an_edited_cv_file_only_recounts(setup, monkeypatch):
     calls = []
 
     def evaluate(job, rules, facts=""):
         calls.append(job.url)
-        cv = Path(settings.load().cv_path)
-        stat = cv.stat()
-        cv.write_text("Python and SQL developer", encoding="utf-8")  # saved in its own program
-        import os
-        os.utime(cv, ns=(stat.st_mtime_ns + 10**9, stat.st_mtime_ns + 10**9))
-        return model_answer(7)
+        if len(calls) == 1:
+            cv = Path(settings.load().cv_path)
+            stat = cv.stat()
+            cv.write_text("Senior SQL analyst", encoding="utf-8")  # saved in its own program during the pass
+            os.utime(cv, ns=(stat.st_mtime_ns + 10**9, stat.st_mtime_ns + 10**9))
+        return model_answer(10)
 
     monkeypatch.setattr(llm, "evaluate", evaluate)
-    assert w._refresh().startswith("Your CV changed")
-    assert len(calls) == 1 and w.cv_changed
+    assert worker.Worker()._refresh() == "Done: 3 matches out of 3 evaluated"  # the model read only the ads
+    assert len(calls) == 3
+    monkeypatch.setattr(llm, "evaluate", lambda *args: pytest.fail("a new CV doesn't need the model"))
+    message = worker.Worker()._refresh()  # the next pass copies the CV and counts the verdicts again
+    assert settings.CV_CHANGED in message and message.startswith("Done: 0 matches out of 3 evaluated")
+    assert {row["score"] for row in db.list_jobs(worker.read_cv(settings.load())[1], 1)} == {4}
 
 
 def test_the_scoring_never_overwrites_settings_saved_meanwhile(setup):

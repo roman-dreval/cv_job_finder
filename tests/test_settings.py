@@ -60,17 +60,6 @@ def test_guess_main_skill():
     assert settings.guess_main_skill([], text) == ""
 
 
-def test_only_a_new_cv_needs_the_model_again():
-    base = filled()
-    # The model only takes facts out of the ads; the program compares them with the rest again in an instant
-    assert not settings.scoring_changed(base, replace(base, skills=["Python", "SQL"], main_skill="SQL", min_score=6,
-                                                     city="Brno", levels=["junior", "mid"],
-                                                     languages={"English": "C1"}, education="master",
-                                                     experience="3-5", areas=["Data / analytics"]))
-    assert settings.scoring_changed(base, replace(base, cv_path="other.md"))
-    assert not settings.scoring_changed(base, replace(base, cv_path="./cv.md"))  # the same file
-
-
 def test_the_profile_is_required():
     assert settings.missing(filled()) == []
     assert settings.missing(filled(education="", experience="", areas=[])) == ["areas", "education", "experience"]
@@ -177,7 +166,7 @@ def test_the_copy_follows_the_file(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "read_cv_text", real)
     edit(cv, "Python and SQL developer")  # edited in its own program
     s, note = settings.sync_cv(s)
-    assert note == "your CV changed, so all jobs were scored again"
+    assert note == settings.CV_CHANGED == "your CV changed, so the verdicts follow the new version"
     assert settings.cv_text(s) == "Python and SQL developer"
 
 

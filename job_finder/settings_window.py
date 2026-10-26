@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QFil
                                QHBoxLayout, QLabel, QLineEdit, QListWidget, QMessageBox, QProgressBar, QPushButton,
                                QScrollArea, QStackedWidget, QToolButton, QVBoxLayout, QWidget)
 
-from job_finder import config, db, settings, skills, style
+from job_finder import settings, style
 from job_finder.flow_layout import FlowLayout
 from job_finder.ready_window import ReadyPanel
 from job_finder.settings import Settings
@@ -449,10 +449,6 @@ class Wizard(QDialog):
             self.pages.addWidget(ReadyPanel(model, "AI model"))
         for name, _ in STEPS[1:]:
             self.pages.addWidget(self.form.page(name))
-        self.has_scores = db.has_evaluations()
-        self.rescore_note = _text("muted", "You already have scored jobs: they will all be scored again with "
-                                           "these settings.")
-
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(self.go_back)
         self.next_button = QPushButton("Next")
@@ -470,7 +466,6 @@ class Wizard(QDialog):
         layout.addWidget(self.bar)
         layout.addSpacing(6)
         layout.addWidget(_scroll(self.pages), 1)
-        layout.addWidget(self.rescore_note)
         layout.addLayout(buttons)
         _buttons_without_enter(self)
 
@@ -486,7 +481,6 @@ class Wizard(QDialog):
         self.bar.setValue(step + 1)
         self.back_button.setVisible(step > 0)
         self.next_button.setText("Start search" if last else "Next")
-        self.rescore_note.setVisible(last and self.has_scores)
         self.update_buttons()
 
     def update_buttons(self) -> None:
@@ -506,7 +500,7 @@ class Wizard(QDialog):
 
 
 class SettingsDialog(QDialog):
-    """Settings: a side menu with the three pages; Save asks first if all jobs have to be scored again."""
+    """Settings: a side menu with the three pages; Save never scores the jobs again (spec section 23)."""
 
     def __init__(self, s: Settings, parent=None):
         super().__init__(parent)
@@ -558,20 +552,9 @@ class SettingsDialog(QDialog):
         self.missing_label.setText(self.form.missing_text())
 
     def save(self) -> None:
-        new = self.form.values()
-        if settings.scoring_changed(self.saved, new):
-            jobs = sum(1 for job in db.pending_jobs("") if skills.matches(job, new.skills))  # "": no key matches
-            if not self.confirm_rescore(jobs):
-                return
-        settings.save(self.form.with_cv_copy(new))
+        """Nothing is scored again (spec section 23): the main window counts the verdicts with these settings."""
+        settings.save(self.form.with_cv_copy(self.form.values()))
         self.accept()
-
-    def confirm_rescore(self, jobs: int) -> bool:
-        minutes = max(1, round(jobs * config.SECONDS_PER_JOB / 60))
-        answer = QMessageBox.question(self, "Score again?",
-                                      f"All jobs will be scored again (about {minutes} min). Save?",
-                                      QMessageBox.Save | QMessageBox.Cancel, QMessageBox.Cancel)
-        return answer == QMessageBox.Save
 
 
 def first_run(cv: Path, model: str | None = None) -> bool:

@@ -5,14 +5,13 @@ import pytest
 from helpers import use_settings
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from job_finder import config, db, llm, lmstudio, ready_window, settings
 from job_finder.cv_window import CvWindow
 from job_finder.ready_window import ReadyPanel
 from job_finder.settings import Settings
 from job_finder.settings_window import SettingsDialog, Wizard, first_run
-from job_finder.sources import Job
 
 
 @pytest.fixture(autouse=True)
@@ -135,19 +134,6 @@ def test_wizard_finishes_with_values(app, cv):
                                        experience="none", areas=["Backend"])
 
 
-def test_wizard_last_step_warns_when_jobs_were_scored(app, cv):
-    wizard = Wizard(settings.initial(cv))
-    to_last_step(wizard)
-    assert wizard.rescore_note.isHidden()
-    db.save_jobs("Jobicy", [Job(url="u", source="Jobicy", title="Dev", company="A", city="", published="2026-10-01",
-                                description="")])
-    db.save_evaluation("u", {"score": 6, "summary": "", "have": [], "missing": [], "risks": []}, "old-key")
-    wizard = Wizard(settings.initial(cv))
-    assert wizard.rescore_note.isHidden()  # only on the last step
-    to_last_step(wizard)
-    assert not wizard.rescore_note.isHidden()
-
-
 def test_first_run_shows_wizard_only_for_missing_settings(app, cv, monkeypatch):
     shown = []
 
@@ -190,11 +176,10 @@ def test_settings_cancel_changes_nothing(app, cv):
     assert settings.load() == s
 
 
-def test_rescore_question_only_for_a_new_cv(app, cv, monkeypatch, tmp_path):
+def test_saving_asks_nothing_even_for_a_new_cv(app, cv, monkeypatch, tmp_path):
     use_settings(cv)
-    asked = []
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: pytest.fail("nothing is scored again: no question"))
     dialog = SettingsDialog(settings.load())
-    monkeypatch.setattr(dialog, "confirm_rescore", lambda jobs: asked.append(jobs) or False)
     add_skill(dialog.form, "SQL")
     dialog.form.main_skill_box.setCurrentText("SQL")
     dialog.form.city_box.setCurrentText("Brno")
@@ -202,18 +187,13 @@ def test_rescore_question_only_for_a_new_cv(app, cv, monkeypatch, tmp_path):
     dialog.form.language_rows[0].level_box.setCurrentText("C1")
     dialog.save_button.click()  # the program compares the jobs with these again in an instant
     s = settings.load()
-    assert asked == [] and (s.skills, s.city, s.education, s.languages) == (
-        ["Python", "SQL"], "Brno", "bachelor", {"English": "C1"})
+    assert (s.skills, s.city, s.education, s.languages) == (["Python", "SQL"], "Brno", "bachelor", {"English": "C1"})
     other = tmp_path / "other.md"
     other.write_text("Python and SQL developer", encoding="utf-8")
     dialog = SettingsDialog(settings.load())
-    monkeypatch.setattr(dialog, "confirm_rescore", lambda jobs: asked.append(jobs) or False)
     dialog.form.set_cv(str(other))
-    dialog.save_button.click()
-    assert len(asked) == 1 and settings.load().cv_path == str(cv)  # "Cancel" on the question saves nothing
-    monkeypatch.setattr(dialog, "confirm_rescore", lambda jobs: True)
-    dialog.save_button.click()
-    assert settings.load().cv_path == str(other)
+    dialog.save_button.click()  # the model read only the ads: the program compares them with this CV now
+    assert settings.load().cv_path == str(other) and settings.cv_text(settings.load()) == "Python and SQL developer"
 
 
 def test_save_keeps_hidden_thresholds(app, cv):
