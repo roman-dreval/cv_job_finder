@@ -1,7 +1,9 @@
-"""Facts and verdicts (spec sections 20.3, 21). The program finds the technologies an ad names (the skills
-dictionary, strict patterns) and hands them to the model with the ad; the model takes the facts out of the ad; the
-program compares them with the candidate's profile and decides: Strong fit, Worth a try, Stretch, Out of reach or
-Other area. The model doesn't judge: a small local model reads well and judges badly."""
+"""Facts and verdicts (spec sections 20.3, 21, 23). The program finds the technologies an ad names (the skills
+dictionary, strict patterns) and hands them to the model with the ad; the model takes the facts out of the ad
+without seeing the CV; the program matches the requirements with the CV, compares the rest with the candidate's
+profile and decides: Strong fit, Worth a try, Stretch, Out of reach or Other area. The model doesn't judge: a small
+local model reads well and judges badly, and with the CV in front of it lists what the candidate has."""
+import functools
 import re
 
 from job_finder import insights, settings
@@ -36,8 +38,37 @@ SOFT_SKILLS = re.compile(
     r"communicat\w*|teamwork|team player|collaborat\w*|leadership|mentoring|responsib\w*|self[- ]?organi[sz]\w*|"
     r"proactiv\w*|curio\w*|motivat\w*|problem[- ]solving|analytical\s+(?:thinking|mindset|skills)|detail[- ]oriented|"
     r"attention to detail|willing\w*|eager\w*|learn\w*\s+(?:ability|quickly|fast)|fast learn\w*|ambiguity|"
-    r"independen\w*|sharing knowledge|interest in|passion\w*|attitude|flexib\w*|creativ\w*|soft skills|mindset",
-    re.IGNORECASE)
+    r"independen\w*|sharing knowledge|interest in|passion\w*|attitude|flexib\w*|creativ\w*|soft skills|mindset|"
+    r"abilit(?:y|ies) to|able to|desire|eye for|multitask\w*|ownership|intuition|track record|proven|explain\w*|"
+    r"enthusias\w*|self-starter|\bdrive\b|thinking|presentation|negotiat\w*|(?:user|customer|business) needs|"
+    r"instincts?", re.IGNORECASE)
+# How an ad writes a spoken language: the language's own forms, not the country's ("v Německu" is not German)
+LANGUAGE_WORDS = {
+    "English": r"english|angličtin\w*|anglicky|anglick\w*", "Czech": r"czech(?!\s+republic)(?!ia)|češtin\w*|česky",
+    "Slovak": r"slovak(?!ia)\w*|slovenštin\w*|slovensky", "German": r"german(?!y)|deutsch|němčin\w*|německy",
+    "Polish": r"polish|polštin\w*|polsky", "Russian": r"russian|ruštin\w*|rusky", "Ukrainian": r"ukrainian|ukrajinštin\w*",
+    "French": r"french|francouzštin\w*|francouzsky", "Spanish": r"spanish|španělštin\w*|španělsky",
+    "Italian": r"italian|italštin\w*|italsky",
+}
+# The conditions' own facts are no skills: a degree, studies, a spoken language
+OTHER_FACTS = re.compile(r"degree|universit\w*|bachelor|master|education|student|graduate|"
+                         + "|".join(LANGUAGE_WORDS.values()), re.IGNORECASE)
+# What every developer does: no requirement to check in a CV (spec section 23)
+GENERIC = re.compile(r"debug\w*|troubleshoot\w*|code reviews?|refactor\w*|bug[- ]?fix\w*|feature implementation|"
+                     r"software development (?:life ?cycle|process)|sdlc|clean code|best practices|"
+                     r"performance optimi[sz]\w*", re.IGNORECASE)
+GENERIC_TECH = {"Debugging/performance"}
+# Technologies close enough: the CV has one of a group, the ad asks for another → similar
+SIMILAR = [{"Django", "Flask", "FastAPI"}, {"React", "Vue", "Angular", "Frontend (any)"}, {"SQL", "PostgreSQL", "MySQL"},
+           {"MongoDB", "Redis", "NoSQL", "Elasticsearch"}, {"AWS", "Azure", "GCP", "Cloud (any)"},
+           {"JavaScript", "TypeScript"}]
+ALTERNATIVES = re.compile(r"\bor\b|\bany\b|one of|such as|e\.g\.|\bnebo\b|\bči\b", re.IGNORECASE)
+# Words that say nothing about a skill outside the dictionary: the rest is looked for in the CV
+FILLER = {"and", "with", "of", "in", "the", "a", "an", "for", "on", "to", "experience", "knowledge", "skills", "skill",
+          "understanding", "familiarity", "familiar", "basic", "basics", "strong", "good", "solid", "proficiency",
+          "proficient", "working", "hands-on", "practical", "advanced", "deep", "excellent", "ability", "using", "usage",
+          "use", "concepts", "concept", "fundamentals", "principles", "tools", "tool", "etc", "e.g.", "including",
+          "like", "such", "as", "or", "at", "least", "one", "is", "are", "be"}
 
 # Czech puts endings on technology names ("v Pythonu", "s Gitem", "Linuxovým shellem"), and the dictionary looks
 # for whole words: such forms are turned back into the name first
@@ -79,8 +110,9 @@ def spans(text: str) -> list[tuple[int, int, str]]:
     return kept
 
 
+@functools.lru_cache(maxsize=4)
 def cv_technologies(cv_text: str) -> set[str]:
-    """The candidate's technologies: from the CV, which the model reads too (so its key covers them)."""
+    """The candidate's technologies, from the CV (the same text for every job of a pass or a recount)."""
     return technologies(cv_text)
 
 
@@ -112,24 +144,48 @@ def _clean(text) -> str:
     return re.sub(r"\*\*|__|`", "", str(text or "")).strip()  # the model sometimes writes Markdown
 
 
-def _skills(items, required: bool, named: set[str], known: set[str], mine: set[str]) -> list[dict]:
-    """The model's skills kept to what the ad and the CV say: one naming only technologies the ad doesn't name, a
-    soft skill or years of experience is dropped; another programming language is never had (C# is not C++); a
-    technology the CV doesn't show is at best similar."""
+def _phrase_in_cv(text: str, cv_text: str) -> bool:
+    """A skill outside the dictionary is the CV's if all its words (without "experience", "basic"…) are in one line
+    of it; a word counts by its beginning ("reporting" is found in "reports")."""
+    words = [word for word in re.findall(r"[^\W\d_][\w+#.-]*", text.lower()) if word not in FILLER]
+    if not words:
+        return False
+    stems = [re.compile(r"\b" + re.escape(word[:max(4, len(word) - 3)]), re.IGNORECASE) for word in words]
+    return any(all(stem.search(line) for stem in stems) for line in re.split(r"[\n.;]", cv_text))
+
+
+def match(skill: str, named: set[str], known: set[str], cv_text: str) -> str:
+    """✓ / ≈ / ✕ of one requirement of the ad (spec section 23): "yes", "similar" or "no". Only the technologies the
+    ad names count; of alternatives ("Python, Java or Go") one is enough; a part of them, or a technology of the
+    same group (Django for FastAPI), is similar. Another programming language is never similar: C# is not C++."""
+    core = _core(skill)
+    found = (technologies(core) - GENERIC_TECH) & named
+    if not found:
+        return "yes" if _phrase_in_cv(core, cv_text) else "no"
+    have = found & _with_families(known)
+    if have and (have == found or ALTERNATIVES.search(core)):
+        return "yes"
+    if have or any(group & found and group & known for group in SIMILAR):
+        return "similar"
+    return "no"
+
+
+def _skills(items, required: bool, named: set[str], known: set[str], cv_text: str) -> list[dict]:
+    """The model's requirements, each matched with the CV by the program; dropped: technologies the ad doesn't
+    name, years of experience, soft skills, a degree or a language (the conditions check them), debugging and
+    code review (every developer's work)."""
     kept = []
     for item in items if isinstance(items, list) else []:
-        text = _clean(item.get("skill")) if isinstance(item, dict) else ""
+        text = _clean(item.get("skill") if isinstance(item, dict) else item)  # before 1.5.0: {"skill", "match"}
         if not text:
             continue
         found = technologies(_core(text))
-        if (found and not found & named) or YEARS.search(text) or (not found and SOFT_SKILLS.search(text)):
+        if found <= GENERIC_TECH and (found or GENERIC.search(text)):
             continue
-        match = item.get("match") if item.get("match") in MATCH else "no"
-        if match != "no" and (found & LANGUAGES & named) - mine:
-            match = "no"
-        elif match == "yes" and found and not found & known:
-            match = "similar"
-        kept.append({"skill": text, "required": required, "match": match})
+        if (found and not found & named) or YEARS.search(text) or (
+                not found and (SOFT_SKILLS.search(text) or OTHER_FACTS.search(text))):
+            continue
+        kept.append({"skill": text, "required": required, "match": match(text, named, known, cv_text)})
     return kept
 
 
@@ -257,13 +313,15 @@ def _title_skills(must: list[dict], nice: list[dict], job: Job, known: set[str])
             for name in insights.REQUIREMENTS if name in missing]
 
 
-def verdict(extraction: dict, job: Job, known: set[str], s: Settings) -> dict:
-    """The program's verdict on one job (spec section 21.3) from the model's facts, the ad and the profile."""
+def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
+    """The program's verdict on one job (spec sections 21.3, 23) from the model's facts, the ad, the CV and the
+    profile."""
     ad = f"{job.title}\n{job.description}"
     named = technologies(ad)
+    known = cv_technologies(cv_text)
     mine = _with_families(known & LANGUAGES)
-    must = _skills(extraction.get("must_have"), True, named, known, mine)
-    nice = _skills(extraction.get("nice_to_have"), False, named, known, mine)
+    must = _skills(extraction.get("must_have"), True, named, known, cv_text)
+    nice = _skills(extraction.get("nice_to_have"), False, named, known, cv_text)
     must += _title_skills(must, nice, job, known)
     conditions = [_degree(extraction, ad, s), _experience(extraction, ad, s), _level(extraction, job, s),
                   _language(extraction, s), _location(extraction, s), _area(extraction, s)]

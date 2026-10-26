@@ -35,8 +35,7 @@ def recount(s: Settings) -> int:
     cv = read_cv(s)
     if cv is None:
         return 0
-    known = grounding.cv_technologies(cv[0])
-    new = [(job.url, grounding.verdict(evaluation["extraction"], job, known, s))
+    new = [(job.url, grounding.verdict(evaluation["extraction"], job, cv[0], s))
            for job, evaluation in db.scored_jobs(cv[1]) if isinstance(evaluation.get("extraction"), dict)]
     db.save_evaluations(new, cv[1])
     return len(new)
@@ -165,7 +164,6 @@ class Worker(QObject):
         """Evaluate jobs one by one; returns the number of failed evaluations. The model gets the technologies the
         program found in each ad and takes the facts out of it; the program gives the verdict."""
         failed = 0
-        known = grounding.cv_technologies(cv_text)
         rules = llm.render_rules(s)
         self.progress.emit(0, len(todo))
         for done, job in enumerate(todo, 1):
@@ -181,7 +179,7 @@ class Worker(QObject):
             try:
                 answer = llm.evaluate(job, rules, grounding.facts(job))
                 # The verdict follows the settings saved now, also when Settings were saved during the pass
-                evaluation = grounding.verdict(answer, job, known, settings.load() or s)
+                evaluation = grounding.verdict(answer, job, cv_text, settings.load() or s)
             except llm.ModelLost:
                 raise  # nothing left to evaluate with: stop the whole pass
             except Exception:

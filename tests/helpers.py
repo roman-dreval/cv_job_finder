@@ -28,9 +28,10 @@ def write_pdf(path: Path, text: str) -> None:
 
 def model_answer(score: int) -> dict:
     """The model's facts about a job that the program turns into this score, for a profile like use_settings's
-    (Backend, junior, Praha): skills without technologies, so the ad's text doesn't matter."""
+    (Backend, junior, Praha, the CV "Python developer"): skills without technologies, so the ad's text doesn't
+    matter; the program finds "developer N" in the CV and not "missing N"."""
     def skills(yes, no):
-        return [{"skill": f"skill {i}", "match": "yes" if i < yes else "no"} for i in range(yes + no)]
+        return [f"developer {i}" if i < yes else f"missing {i}" for i in range(yes + no)]
 
     facts = {"areas": ["Backend"], "seniority": "junior", "min_years": 0, "degree": "none", "students_welcome": False,
              "languages": [], "workplace": "not stated", "place": "", "must_have": skills(2, 0), "nice_to_have": [],

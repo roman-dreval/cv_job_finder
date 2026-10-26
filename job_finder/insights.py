@@ -35,7 +35,7 @@ REQUIREMENTS = {
     "Frontend (any)": [r"front-?end"],
     "Mobile": [r"android", r"ios", r"mobile", r"flutter", r"react native"],
     # Data
-    "SQL": [r"sql", r"t-sql", r"pl/sql"],
+    "SQL": [r"sql", r"t-sql", r"pl/sql", r"databases?", r"databáz\w*"],  # "relational databases" is SQL
     "PostgreSQL": [r"postgres", r"postgresql"],
     "MySQL": [r"mysql", r"mariadb"],
     "MongoDB": [r"mongodb", r"mongo"],

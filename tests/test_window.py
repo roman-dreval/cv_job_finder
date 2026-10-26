@@ -1278,7 +1278,8 @@ def test_saving_the_profile_recounts_the_verdicts(window, monkeypatch):
               published=date.today().isoformat(), description="Python. A Master's degree is required.")
     db.save_jobs(job.source, [job])
     facts = {**model_answer(10), "degree": "master"}
-    db.save_evaluation("v", grounding.verdict(facts, job, set(), replace(s, education="master")), key)
+    master = replace(s, education="master")
+    db.save_evaluation("v", grounding.verdict(facts, job, worker.read_cv(s)[0], master), key)
     db.mark_all_seen()
     window.load_rows()
     assert titles(window) == ["Junior Backend Developer"]
@@ -1294,7 +1295,7 @@ def verdict_row(url, facts, title="Junior Backend Developer", description="Pytho
     job = Job(url=url, source=f"src-{url}", title=title, company="ACME", city="Prague",
               published=date.today().isoformat(), description=description)
     db.save_jobs(job.source, [job])
-    evaluation = grounding.verdict(facts, job, set(), s)
+    evaluation = grounding.verdict(facts, job, worker.read_cv(s)[0], s)
     db.save_evaluation(url, evaluation, worker.read_cv(s)[1])
     db.mark_all_seen()
     return evaluation
@@ -1311,9 +1312,9 @@ def test_card_shows_the_verdict_band_conditions_and_skills(window):
         ("✓", "Degree"), ("✓", "Experience"), ("✓", "Level"), ("✓", "Language"), ("✓", "Location"), ("✓", "Area")]
     assert window.v_conditions[2][2].text() == "Junior"
     assert window.v_must_caption.text() == "MUST-HAVE · 2 of 2"
-    assert [chip.accessibleName() for chip in window.v_must_chips] == ["✓ skill 0", "✓ skill 1"]
+    assert [chip.accessibleName() for chip in window.v_must_chips] == ["✓ developer 0", "✓ developer 1"]
     assert window.v_nice_caption.text() == "NICE TO HAVE · 0 of 2"
-    assert [chip.accessibleName() for chip in window.v_nice_chips] == ["✕ skill 0", "✕ skill 1"]
+    assert [chip.accessibleName() for chip in window.v_nice_chips] == ["✕ missing 0", "✕ missing 1"]
     assert window.v_about.text() == "Builds the backend of a booking site."
 
 

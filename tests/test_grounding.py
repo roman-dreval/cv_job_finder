@@ -7,7 +7,7 @@ from job_finder.sources import Job
 S = Settings(cv_path="cv.md", skills=["Python"], main_skill="Python", city="Praha", remote=True,
              levels=["intern", "junior"], languages={"English": "B2", "Czech": "B1"}, education="studying",
              experience="none", areas=["Backend", "Data / analytics"])
-KNOWN = {"Python", "SQL", "FastAPI", "Git"}
+CV = "Python developer.\nSkills: Python, SQL, FastAPI, Git.\nData modeling for weekly reports."
 CPP_CV = "Junior developer. Skills: C++17, C, CMake, Git, Linux"
 AD = Job(url="p", source="Jobicy", title="Junior Python Developer", company="A", city="Prague", published="",
          description="Required: Python, SQL. Docker is a plus. English B2. Hybrid, Prague office.")
@@ -15,21 +15,20 @@ CSHARP_AD = Job(url="u", source="junior.guru", title="Junior C# Developer", comp
                 published="2026-10-20", description="We build web apps in C# and .NET with SQL Server. Git is a plus.")
 
 
-def skill(name, match="yes"):
-    return {"skill": name, "match": match}
-
-
 def facts(**overrides):
-    """What the model takes out of an ad (spec section 21.2)."""
+    """What the model takes out of an ad, without the CV (spec sections 21.2, 23)."""
     base = {"areas": ["Backend"], "seniority": "junior", "min_years": 0, "degree": "none", "students_welcome": False,
             "languages": [{"language": "English", "level": "B2"}], "workplace": "hybrid", "place": "Prague",
-            "must_have": [skill("Python"), skill("SQL")], "nice_to_have": [skill("Docker", "no")],
-            "about": "Backend services in Python."}
+            "must_have": ["Python", "SQL"], "nice_to_have": ["Docker"], "about": "Backend services in Python."}
     return {**base, **overrides}
 
 
-def verdict(extraction, job=AD, known=KNOWN, s=S):
-    return grounding.verdict(extraction, job, known, s)
+def verdict(extraction, job=AD, cv=CV, s=S):
+    return grounding.verdict(extraction, job, cv, s)
+
+
+def marks(items):
+    return [(item["skill"], item["match"]) for item in items]
 
 
 def condition(result, name):
@@ -88,20 +87,50 @@ def test_a_strong_fit():
 
 
 def test_skills_set_the_band():
-    assert verdict(facts(nice_to_have=[skill("Docker")]), known=KNOWN | {"Docker"})["score"] == 10
-    assert verdict(facts(nice_to_have=[skill("Docker")]))["score"] == 9  # not in the CV: at best similar
-    half = verdict(facts(must_have=[skill("Python"), skill("Django", "no")], nice_to_have=[]), with_text("Django"))
+    assert verdict(facts(), cv=CV + "\nDocker")["score"] == 10
+    assert verdict(facts(nice_to_have=["Django"]), with_text("Django"))["score"] == 9  # FastAPI is similar
+    half = verdict(facts(must_have=["Python", "Kubernetes"], nice_to_have=[]), with_text("Kubernetes"))
     assert (half["verdict"], half["score"]) == ("Worth a try", 6)  # 2 of 4
-    few = facts(must_have=[skill("Python"), skill("Django", "no"), skill("Kubernetes", "no"), skill("Go", "no")],
-                nice_to_have=[])
-    result = verdict(few, with_text("Django, Kubernetes, Go"))
+    few = facts(must_have=["Python", "Kubernetes", "Rust", "Go"], nice_to_have=[])
+    result = verdict(few, with_text("Kubernetes, Rust, Go"))
     assert (result["verdict"], result["score"], result["reason"]) == ("Stretch", 4, "1 of 4 must-haves")
 
 
 def test_missing_nice_to_haves_weigh_a_quarter():
-    two_missing = facts(nice_to_have=[skill("Docker", "no"), skill("Kubernetes", "no")])
-    result = verdict(two_missing, with_text("Docker, Kubernetes"))
+    result = verdict(facts(nice_to_have=["Docker", "Kubernetes"]), with_text("Docker, Kubernetes"))
     assert (result["verdict"], result["score"]) == ("Strong fit", 8)  # 4 of 5 = 0.8, not 4 of 6
+
+
+def test_the_program_matches_each_requirement_with_the_cv():
+    ad = with_text("Python, Java or Go. Python and Kafka. Django. Kubernetes.")
+    result = verdict(facts(must_have=["Python, Java or Go", "Python and Kafka", "Django", "Kubernetes"]), ad)
+    assert marks(result["must"]) == [("Python, Java or Go", "yes"),  # one of the alternatives is enough
+                                     ("Python and Kafka", "similar"),  # a part of it
+                                     ("Django", "similar"),  # FastAPI is in the same group
+                                     ("Kubernetes", "no")]
+    cpp = verdict(facts(must_have=["C# programming (similar to C++)", "Git"]), CSHARP_AD, cv=CPP_CV)
+    assert marks(cpp["must"]) == [("C# programming (similar to C++)", "no"), ("Git", "yes")]  # only what the ad names
+    old = verdict(facts(must_have=[{"skill": "Python", "match": "no"}]))  # an answer from before 1.5.0
+    assert marks(old["must"]) == [("Python", "yes")]
+
+
+def test_a_skill_outside_the_dictionary_is_looked_for_in_one_line_of_the_cv():
+    result = verdict(facts(must_have=["Data modeling", "data modeling and reporting concepts", "Experimentation",
+                                      "modeling of weather"]), replace(AD, title="Junior Developer"))
+    assert marks(result["must"]) == [("Data modeling", "yes"), ("data modeling and reporting concepts", "yes"),
+                                     ("Experimentation", "no"), ("modeling of weather", "no")]
+
+
+def test_what_is_not_a_requirement_to_check_is_left_out():
+    result = verdict(facts(must_have=["Python", "debugging and code review", "Debugging", "ability to explain results",
+                                      "Bachelor's degree in CS", "Fluent English", "analytical thinking",
+                                      "3+ years Python", "teamwork", "Vue.js"], nice_to_have=[]))
+    assert marks(result["must"]) == [("Python", "yes")]  # Vue.js: the ad doesn't name it
+
+
+def test_databases_mean_sql():
+    assert grounding.technologies("knowledge of relational databases") == {"SQL"}
+    assert grounding.technologies("práce s databázemi") == {"SQL"}
 
 
 def test_no_concrete_requirements():
@@ -196,25 +225,20 @@ def test_another_area_is_kept_aside():
 
 
 def test_another_main_language_is_a_stretch():
-    known = grounding.cv_technologies(CPP_CV)
-    result = verdict(facts(must_have=[skill("C#", "no"), skill("Git")], nice_to_have=[]), CSHARP_AD, known)
+    result = verdict(facts(must_have=["C#", "Git"], nice_to_have=[]), CSHARP_AD, cv=CPP_CV)
     assert (result["verdict"], result["score"]) == ("Stretch", 4)
     assert result["reason"] == "Main language C#/.NET isn't in your CV"
 
 
 def test_skills_are_checked_against_the_ad_and_the_cv():
-    result = verdict(facts(must_have=[skill("Python"), skill("Vue.js"), skill("teamwork"), skill("3+ years Python"),
-                                      skill("Django (has FastAPI)")], nice_to_have=[]), with_text("Django"))
-    assert [(s["skill"], s["match"]) for s in result["must"]] == [("Python", "yes"),
-                                                                  ("Django (has FastAPI)", "similar")]
-    known = grounding.cv_technologies(CPP_CV)
-    cpp = verdict(facts(must_have=[skill("C# programming (similar to C++)"), skill("Git")]), CSHARP_AD, known)
-    assert [s["match"] for s in cpp["must"]] == ["no", "yes"]  # C# is not C++
+    result = verdict(facts(must_have=["Python", "Vue.js", "teamwork", "3+ years Python", "Django (has FastAPI)"],
+                           nice_to_have=[]), with_text("Django"))
+    assert marks(result["must"]) == [("Python", "yes"), ("Django (has FastAPI)", "similar")]
 
 
 def test_technologies_in_the_title_are_must_haves():
     sarvify = replace(AD, title="Intern - HTML/CSS JS Python", description="Python, REST APIs, Git.")
-    result = verdict(facts(must_have=[skill("Python"), skill("Git")], nice_to_have=[]), sarvify)
+    result = verdict(facts(must_have=["Python", "Git"], nice_to_have=[]), sarvify)
     assert [(s["skill"], s["match"]) for s in result["must"]] == [
         ("Python", "yes"), ("Git", "yes"), ("JavaScript", "no"), ("HTML/CSS", "no")]  # the model left them out
     assert result["verdict"] == "Worth a try"
@@ -222,8 +246,7 @@ def test_technologies_in_the_title_are_must_haves():
 
 def test_languages_only_welcomed_still_are_the_jobs_languages():
     fnz = replace(AD, title="Graduate Analyst Developer", description="Znalost C#, Java nebo C++.")
-    result = verdict(facts(must_have=[], nice_to_have=[skill("C#", "no"), skill("Java", "no"), skill("C++", "no")]),
-                     fnz)
+    result = verdict(facts(must_have=[], nice_to_have=["C#", "Java", "C++"]), fnz)
     assert (result["verdict"], result["score"]) == ("Stretch", 4)
     assert result["reason"] == "None of the job's languages is in your CV: Java, C#/.NET, C/C++"
 
@@ -236,10 +259,8 @@ def test_markdown_is_taken_out_of_the_about_line():
 def test_the_ads_languages_count_even_when_the_model_lists_cv_skills():
     emetlab = replace(AD, title="Junior Software Engineer",
                       description="You write Python, C#, TypeScript or JavaScript. Networking and tests.")
-    known = grounding.cv_technologies(CPP_CV)
-    # The model listed what the CV has, not what the ad asks for
-    result = verdict(facts(must_have=[skill("Git"), skill("Networking (TCP/IP sockets)", "similar")],
-                           nice_to_have=[]), emetlab, known)
+    # The model listed only some of the ad's skills
+    result = verdict(facts(must_have=["Git", "Networking (TCP/IP sockets)"], nice_to_have=[]), emetlab, cv=CPP_CV)
     assert (result["verdict"], result["score"]) == ("Stretch", 4)
     assert result["reason"] == "None of the job's languages is in your CV: Python, C#/.NET, JavaScript, TypeScript"
     assert verdict(facts(), emetlab)["verdict"] != "Stretch"  # Python is in this CV
