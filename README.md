@@ -36,7 +36,7 @@ region of Czechia and remote jobs open to it.
 
 🤖 **A clear verdict**<br>
 Strong fit, Worth a try, Stretch or Out of reach, with the reason: "Requires a Master's degree", "3 of 4
-must-haves". The AI reads the ad, the app decides.
+must-haves". The AI reads only the ad, the app checks it against your CV.
 
 </td>
 </tr>
@@ -128,21 +128,25 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
 
 - **Closing the window doesn't quit the app.** It stays in the tray next to the clock. To quit,
   right-click the icon and choose **Quit**.
-- **New jobs are scored by themselves**, at start and every 3 hours. A big scoring (after an update or a new
-  CV, more than 40 jobs) doesn't start on its own: the **Refresh** button turns into **Start scoring (about
-  N min)**, so you choose when the graphics card is busy.
+- **New jobs are scored by themselves**, at start and every 3 hours. A big scoring (after an update, more than
+  40 jobs) doesn't start on its own: the **Refresh** button turns into **Start scoring (about N min)**, so you
+  choose when the graphics card is busy.
 - **Your CV** is copied into the app when you choose it, so the app keeps working if the file is moved,
   deleted or open in another program. When you edit the file itself (the same PDF or document), the app notices
-  it, even during a scoring, and scores the jobs again for the new version.
+  it and the verdicts follow the new version in a moment, without scoring again.
 - **Settings**, at the top of the window, changes anything from the setup, also while jobs are being scored.
-  If a change affects the scores, the app says how long scoring everything again will take and asks first; then
-  it stops the scoring that runs and starts again with the new settings.
-- **How a job gets its verdict:** the AI only reads the ad: the degree, years of experience, level, languages
-  and place it asks for, and its skills, each marked ✓ (in your CV), ≈ (a similar skill) or ✕. The app then
-  checks six conditions against your profile: degree, experience, level, language, location and area. One that
-  you don't meet makes the job **Out of reach**, and the card says which; another area keeps it aside. Otherwise
-  the skills decide: **Strong fit**, **Worth a try** or **Stretch**. Change your profile in Settings and the
-  verdicts follow at once, without scoring again.
+  Nothing is scored again: a new profile or CV gives new verdicts at once, and a new city, level or skills
+  starts a new search.
+- **How a job gets its verdict:** the AI reads only the ad, never your CV: the skills it requires and the ones
+  it welcomes, as the ad writes them, and the degree, years of experience, level, languages and place. The app
+  then marks each skill ✓ (in your CV), ≈ (a similar skill, like Flask for FastAPI, or a part of it) or ✕, and
+  checks six conditions against your profile: degree, experience, level, language (its level read from the ad's
+  own words), location and area. One that you don't meet makes the job **Out of reach**, and the card says
+  which; another area keeps it aside. Otherwise the skills decide: **Strong fit**, **Worth a try** or
+  **Stretch**. Required skills make 80 % of it and welcome ones a 20 % bonus; an ad that names fewer than three
+  requirements is at most Worth a try.
+- **The description** in the card keeps the site's paragraphs, headings and lists, and colours the technologies:
+  green if your CV has them, red if not.
 - **Games and the model share the video memory**, so the app pauses scoring while a full-screen game
   is running and picks it up later.
 - **Updating:** the app downloads a new version by itself and shows a green **Restart to update** button
