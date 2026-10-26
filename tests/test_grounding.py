@@ -10,7 +10,7 @@ S = Settings(cv_path="cv.md", skills=["Python"], main_skill="Python", city="Prah
 CV = "Python developer.\nSkills: Python, SQL, FastAPI, Git.\nData modeling for weekly reports."
 CPP_CV = "Junior developer. Skills: C++17, C, CMake, Git, Linux"
 AD = Job(url="p", source="Jobicy", title="Junior Python Developer", company="A", city="Prague", published="",
-         description="Required: Python, SQL. Docker is a plus. English B2. Hybrid, Prague office.")
+         description="Required: Python, SQL, Git. Docker is a plus. English B2. Hybrid, Prague office.")
 CSHARP_AD = Job(url="u", source="junior.guru", title="Junior C# Developer", company="A", city="Prague",
                 published="2026-10-20", description="We build web apps in C# and .NET with SQL Server. Git is a plus.")
 
@@ -19,7 +19,7 @@ def facts(**overrides):
     """What the model takes out of an ad, without the CV (spec sections 21.2, 23)."""
     base = {"areas": ["Backend"], "seniority": "junior", "min_years": 0, "degree": "none", "students_welcome": False,
             "languages": [{"language": "English", "level": "B2"}], "workplace": "hybrid", "place": "Prague",
-            "must_have": ["Python", "SQL"], "nice_to_have": ["Docker"], "about": "Backend services in Python."}
+            "must_have": ["Python", "SQL", "Git"], "nice_to_have": ["Docker"], "about": "Backend services in Python."}
     return {**base, **overrides}
 
 
@@ -76,13 +76,13 @@ def test_spans_say_where_technologies_are_written():
 
 def test_a_strong_fit():
     result = verdict(facts())
-    # must-have 2 of 2 (weight 2), nice-to-have 0 of 1 (weight 0.5): 4 of 4.5 = 0.89
+    # must-haves 3 of 3 (80 % of the share), nice-to-haves 0 of 1 (20 %): 0.8
     assert (result["verdict"], result["score"]) == ("Strong fit", 8)
-    assert result["reason"] == "2 of 2 must-haves · 0 of 1 nice-to-haves · all conditions met"
+    assert result["reason"] == "3 of 3 must-haves · 0 of 1 nice-to-haves · all conditions met"
     assert all(c["ok"] for c in result["conditions"])
     assert [c["name"] for c in result["conditions"]] == ["Degree", "Experience", "Level", "Language", "Location",
                                                          "Area"]
-    assert (result["have"], result["missing"], result["risks"]) == (["Python", "SQL"], ["Docker"], [])
+    assert (result["have"], result["missing"], result["risks"]) == (["Python", "SQL", "Git"], ["Docker"], [])
     assert result["extraction"] == facts() and result["about"] == "Backend services in Python."
 
 
@@ -96,9 +96,21 @@ def test_skills_set_the_band():
     assert (result["verdict"], result["score"], result["reason"]) == ("Stretch", 4, "1 of 4 must-haves")
 
 
-def test_missing_nice_to_haves_weigh_a_quarter():
-    result = verdict(facts(nice_to_have=["Docker", "Kubernetes"]), with_text("Docker, Kubernetes"))
-    assert (result["verdict"], result["score"]) == ("Strong fit", 8)  # 4 of 5 = 0.8, not 4 of 6
+def test_nice_to_haves_give_a_fifth():
+    many = ["Docker", "Kubernetes", "Kafka", "Redis", "AWS", "Terraform", "Airflow", "Spark"]
+    result = verdict(facts(nice_to_have=many), with_text(", ".join(many)))
+    assert (result["verdict"], result["score"]) == ("Strong fit", 8)  # all must-haves: 0.8 whatever is missing
+    one_short = verdict(facts(must_have=["Python", "SQL", "Git", "Kubernetes"], nice_to_have=[]),
+                        with_text("Kubernetes"))
+    assert (one_short["verdict"], one_short["score"]) == ("Strong fit", 8)  # 3 of 4, no nice-to-haves: 0.75
+
+
+def test_one_or_two_requirements_are_too_few_for_a_strong_fit():
+    result = verdict(facts(must_have=["Python", "SQL"], nice_to_have=[]))
+    assert (result["verdict"], result["score"]) == ("Worth a try", 7)
+    assert result["reason"] == "Only 2 requirements named: read the ad before applying"
+    assert verdict(facts(must_have=["Python"], nice_to_have=[]))["reason"] == \
+        "Only 1 requirement named: read the ad before applying"
 
 
 def test_the_program_matches_each_requirement_with_the_cv():

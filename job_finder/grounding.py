@@ -14,8 +14,9 @@ FAMILIES = [{"JavaScript", "TypeScript"}]  # in the main-language check one coun
 LANGUAGES = set(settings.PROGRAMMING_LANGUAGES)
 
 STRONG, WORTH, STRETCH, OUT, OTHER = "Strong fit", "Worth a try", "Stretch", "Out of reach", "Other area"
-MATCH = {"yes": 1.0, "similar": 0.7, "no": 0.0}  # the share of a skill's weight the candidate gets
-WEIGHTS = {True: 2, False: 0.5}  # a must-have, a nice-to-have (optional by its name: it weighs a quarter)
+MATCH = {"yes": 1.0, "similar": 0.7, "no": 0.0}  # the share of a skill the candidate gets
+MUST_PART = 0.8  # the must-haves' part of the share; nice-to-haves give the rest, a bonus that never sinks a job
+FEW_MUST = 3  # fewer must-haves than this: too little to call a job a strong fit (spec section 23)
 DEGREES = ["none", "bachelor", "master", "phd"]  # the lowest first
 DEGREE_NAMES = {"bachelor": "Bachelor's degree", "master": "Master's degree", "phd": "PhD"}
 EDUCATION_RANK = {"none": 0, "studying": 0.5, "bachelor": 1, "master": 2, "phd": 3}
@@ -379,10 +380,9 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
     conditions = [_degree(extraction, ad, s), _experience(extraction, ad, s), _level(extraction, job, s),
                   _language(extraction, ad, s), _location(extraction, s), _area(extraction, s)]
     failed = [c for c in conditions[:-1] if not c["ok"]]
-    points = sum(WEIGHTS[i["required"]] * MATCH[i["match"]] for i in must + nice)
-    total = sum(WEIGHTS[i["required"]] for i in must + nice)
-    share = points / total if total else 0.0
     must_share = sum(MATCH[i["match"]] for i in must) / len(must) if must else 0.0
+    nice_share = sum(MATCH[i["match"]] for i in nice) / len(nice) if nice else must_share
+    share = round(MUST_PART * must_share + (1 - MUST_PART) * nice_share, 6)  # 0.75 stays 0.75 at a band's edge
     count = f"{sum(i['match'] != 'no' for i in must)} of {len(must)} must-haves"
     if nice:
         count += f" · {sum(i['match'] != 'no' for i in nice)} of {len(nice)} nice-to-haves"
@@ -397,10 +397,14 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
         name, score = STRETCH, 4
     elif not must:
         name, score, reason = WORTH, 6, "The ad names few concrete requirements: read it before applying"
-    elif share >= 0.8 and must_share >= 0.75:
-        name, score, reason = STRONG, 10 if share >= 1 else 9 if share >= 0.9 else 8, f"{count} · all conditions met"
+    elif share >= 0.75 and must_share >= 0.7 and len(must) < FEW_MUST:
+        requirements = "requirement" if len(must) == 1 else "requirements"
+        name, score, reason = WORTH, 7, f"Only {len(must)} {requirements} named: read the ad before applying"
+    elif share >= 0.75 and must_share >= 0.7:
+        name, score = STRONG, 10 if share >= 0.95 else 9 if share >= 0.85 else 8
+        reason = f"{count} · all conditions met"
     elif share >= 0.5:
-        name, score, reason = WORTH, 7 if share >= 0.65 else 6, count
+        name, score, reason = WORTH, 7 if share >= 0.6 else 6, count
     else:
         name, score, reason = STRETCH, 5 if share >= 0.3 else 4, count
     about = _clean(extraction.get("about"))
