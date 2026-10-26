@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Job Finder")
         self.resize(1200, 750)
         self.rows: list[dict] = []        # found jobs scored above the threshold
-        self.cv_skills: set[str] = set()  # the CV's technologies: coloured in the description
+        self.cv_skills: frozenset[str] = frozenset()  # the CV's technologies: coloured in the description
         self.visible: list[dict] = []     # found jobs that pass the filters, in table order
         self.applied: list[dict] = []     # applications, newest first
         self.applied_by_key: dict[tuple[str, str], dict] = {}  # latest application by "company + title"

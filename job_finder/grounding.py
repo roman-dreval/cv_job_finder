@@ -124,9 +124,10 @@ def spans(text: str) -> list[tuple[int, int, str]]:
 
 
 @functools.lru_cache(maxsize=4)
-def cv_technologies(cv_text: str) -> set[str]:
-    """The candidate's technologies, from the CV (the same text for every job of a pass or a recount)."""
-    return technologies(cv_text)
+def cv_technologies(cv_text: str) -> frozenset[str]:
+    """The candidate's technologies, from the CV (the same text for every job of a pass or a recount; frozen: the
+    cache hands the same set to everyone)."""
+    return frozenset(technologies(cv_text))
 
 
 def _ordered(names: set[str]) -> str:
