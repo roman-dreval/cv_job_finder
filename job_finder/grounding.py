@@ -89,14 +89,14 @@ def _ordered(names: set[str]) -> str:
     return ", ".join(name for name in insights.REQUIREMENTS if name in names) or "none"
 
 
-def facts(job: Job, known: set[str]) -> str:
-    """What the program found in the ad, for the model: named technologies, which are in the CV and which not."""
+def facts(job: Job) -> str:
+    """What the program found in the ad, for the model: the technologies written in it (spec section 23)."""
     named = technologies(f"{job.title}\n{job.description}")
     if not named:
-        return ("Technologies this ad names (found by a program): no known technologies. Do not add technologies "
+        return ("Technologies a program found written in this ad: no known technologies. Do not add technologies "
                 "it does not name.")
-    return (f"Technologies this ad names (found by a program, reliable): {_ordered(named)}.\n"
-            f"Of them in the candidate's CV: {_ordered(named & known)}. Not in the CV: {_ordered(named - known)}.")
+    return (f"Technologies a program found written in this ad (it doesn't know whether they are required): "
+            f"{_ordered(named)}.")
 
 
 def _with_families(names: set[str]) -> set[str]:

@@ -20,7 +20,7 @@ class FakeResponse:
         return self._data
 
 
-def test_evaluate_sends_cv_and_truncated_vacancy(monkeypatch):
+def test_evaluate_sends_only_the_truncated_ad(monkeypatch):
     sent = {}
     answer = {"requirements": [{"requirement": "Python", "required": True, "match": "yes"}], "blockers": [],
               "summary": "Good fit"}
@@ -33,14 +33,14 @@ def test_evaluate_sends_cv_and_truncated_vacancy(monkeypatch):
     job = Job(url="u", source="Jobicy", title="Python Dev", company="ACME", city="Prague",
               published="2026-10-01", description="x" * 20000)
 
-    result = llm.evaluate("MY CV", job, "RULES-TEXT")
+    result = llm.evaluate(job, "RULES-TEXT")
 
     assert result == answer  # the program counts the score
     assert sent["url"] == f"{config.LM_URL}/chat/completions"
     body = sent["json"]
     assert body["model"] == config.MODEL_ID
     assert body["response_format"]["type"] == "json_schema"
-    assert body["messages"][0]["content"] == "RULES-TEXT" + "MY CV"
+    assert body["messages"][0]["content"] == "RULES-TEXT"  # no CV: the model can't list the candidate's skills
     user = body["messages"][1]["content"]
     assert "Python Dev" in user and "ACME" in user and "Prague" in user
     assert user.count("x") == config.MAX_DESCRIPTION_CHARS
@@ -55,7 +55,7 @@ def test_evaluate_rejects_answer_from_another_model(monkeypatch):
     job = Job(url="u", source="Jobicy", title="Python Dev", company="ACME", city="", published="2026-10-01",
               description="")
     with pytest.raises(llm.ModelLost, match="qwen/qwen3.8-27b"):
-        llm.evaluate("CV", job, "RULES")
+        llm.evaluate(job, "RULES")
 
 
 def test_prepare_starts_server_without_capturing_output(tmp_path, monkeypatch):
@@ -89,7 +89,7 @@ def test_the_rules_are_the_same_for_everyone():
     assert rules == llm.render_rules(replace(s, city="Praha", levels=["senior"], languages={"English": "B2"},
                                              education="master", areas=["Frontend"]))
     assert "Brno" not in rules and "Kotlin" not in rules and "Russian" not in rules
-    assert "Write all texts in English" in rules and rules.endswith("Candidate's CV:" + chr(10))
+    assert rules.endswith("Write all texts in English, as plain text without Markdown." + chr(10))
 
 
 def test_fingerprint_ignores_the_profile():
@@ -158,20 +158,21 @@ def test_evaluate_ends_the_ad_with_the_programs_facts(monkeypatch):
 
     monkeypatch.setattr(llm.requests, "post", fake_post)
     job = Job(url="u", source="Jobicy", title="Dev", company="A", city="", published="", description="We use C#.")
-    llm.evaluate("CV", job, "RULES", "Technologies this ad names (found by a program, reliable): C#/.NET.")
+    llm.evaluate(job, "RULES", "Technologies a program found written in this ad: C#/.NET.")
     assert sent["json"]["messages"][1]["content"].endswith(
-        "We use C#.\n\nTechnologies this ad names (found by a program, reliable): C#/.NET.")
+        "We use C#.\n\nTechnologies a program found written in this ad: C#/.NET.")
 
 
-def test_the_rules_ask_for_facts_not_a_judgement():
+def test_the_rules_ask_for_the_ads_facts_without_the_candidate():
     rules = llm.render_rules(Settings())
-    assert "You do not judge" in rules and "a program compares them" in rules
-    assert "C, C++ and C# are three different languages" in rules and "Java is not JavaScript" in rules
-    assert "the technologies a program found in it" in rules and "rely on that list" in rules
-    assert "nor a technology the ad does not name" in rules and "whether the candidate has it or not" in rules
+    assert "You don't see the candidate" in rules and "CV" not in rules
+    assert "at most 8" in rules and 'write them together with "or"' in rules
+    assert "not what the person will do or learn" in rules
     assert "Machine learning / AI" in rules and '"Not IT"' in rules  # the areas to choose from
     properties = llm.SCHEMA["properties"]
     areas = properties["areas"]["items"]["enum"]
     assert areas[:2] == ["Backend", "Frontend"] and "Not IT" in areas
     assert properties["degree"]["enum"] == list(grounding.DEGREES)
+    for key in ("must_have", "nice_to_have"):  # the ad's words; the program decides what the CV has
+        assert properties[key] == {"type": "array", "items": {"type": "string"}, "maxItems": 8}
     assert set(llm.SCHEMA["required"]) == set(properties)

@@ -15,12 +15,7 @@ from job_finder.sources import Job
 
 log = logging.getLogger(__name__)
 
-_SKILLS = {"type": "array", "items": {
-    "type": "object",
-    "properties": {"skill": {"type": "string"}, "match": {"type": "string", "enum": ["yes", "similar", "no"]}},
-    "required": ["skill", "match"],
-    "additionalProperties": False,
-}}
+_SKILLS = {"type": "array", "items": {"type": "string"}, "maxItems": 8}  # as the ad writes them
 # The model takes the facts out of the ad; the program compares them with the profile (grounding.verdict)
 SCHEMA = {
     "type": "object",
@@ -49,10 +44,8 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
-RULES = """You read a job ad for a candidate whose CV is below. You do not judge whether the candidate fits:
-you take the facts out of the ad, and a program compares them with the candidate.
-Each ad ends with the technologies a program found in it and which of them are in the CV: rely on that list,
-it is reliable.
+RULES = """You read a job ad and take its facts out. You don't see the candidate: a program compares the facts with
+the candidate later.
 
 Answer with a JSON object:
 - areas — the kind of work: one or two of {areas} (two when the job mixes
@@ -66,29 +59,27 @@ Answer with a JSON object:
 - languages — the spoken languages the ad requires, each with its level (A1 to C2, native, or "not stated");
 - workplace — office, hybrid, remote, or "not stated";
 - place — the city of the office, or the countries or regions a remote job is open to; "" if not stated;
-- must_have — the skills and technologies the ad requires, at most 6, the core of the role first;
-- nice_to_have — the ones it only welcomes ("a plus", "an advantage", "nice to have"), at most 6;
-  for each skill, match: "yes" if the CV shows it; "similar" if the CV has an adjacent skill of the same
-  programming language (Django or Flask for FastAPI, MySQL for PostgreSQL, React for Vue, Spring for
-  Jakarta EE), any REST/HTTP API, any Git hosting; otherwise "no". Another programming language is never
-  similar: C, C++ and C# are three different languages, and Java is not JavaScript.
-  List what the ad asks for, as the ad writes it, whether the candidate has it or not; never add the
-  candidate's skills the ad doesn't ask for, nor a technology the ad does not name. Soft skills, years of
-  experience, degrees and spoken languages are not skills here.
+- must_have — every skill, technology and field of knowledge the ad requires of the candidate, at most 8, the
+  core of the role first;
+- nice_to_have — the ones it only welcomes ("a plus", "an advantage", "nice to have", "preferred", "výhodou"),
+  at most 8;
+  write each as the ad names it, in a few words. Alternatives the ad offers ("Python, Java or Go", "at least one
+  language such as C# or Java") are one item: write them together with "or". Only what the candidate must
+  already have, not what the person will do or learn in the job, nor what the company does or uses. Soft
+  skills, years of experience, degrees and spoken languages are not skills here.
 - about — one sentence: what the person will do in this job.
 Write all texts in English, as plain text without Markdown.
-
-Candidate's CV:
 """.format(areas=", ".join(AREAS))
 
 
 def render_rules(s: Settings) -> str:
-    """The rules for the model: the same for everyone, the profile is the program's part (spec section 21.2)."""
+    """The rules for the model: the same for everyone, the profile and the CV are the program's part (spec sections
+    21.2, 23)."""
     return RULES
 
 
 def fingerprint(s: Settings) -> str:
-    """What determines a score besides the CV: if it changes, earlier scores are outdated."""
+    """What determines the model's facts about an ad: if it changes, earlier scores are outdated."""
     return f"{model_name(s)}\n{render_rules(s)}"
 
 
@@ -182,9 +173,9 @@ def prepare(model: str) -> None:
             raise RuntimeError(f"model failed to load: {clean_output(result.stderr or result.stdout)}")
 
 
-def evaluate(cv_text: str, job: Job, rules: str, facts: str = "") -> dict:
-    """The model's facts about one job (grounding.verdict decides). facts: what the program found in the ad, at its
-    end."""
+def evaluate(job: Job, rules: str, facts: str = "") -> dict:
+    """The model's facts about one job, read without the CV (grounding.verdict decides). facts: what the program
+    found in the ad, at its end."""
     vacancy = (
         f"Title: {job.title}\nCompany: {job.company}\nLocation: {job.city}\nSource: {job.source}\n\n"
         f"{job.description[:config.MAX_DESCRIPTION_CHARS]}"
@@ -196,7 +187,7 @@ def evaluate(cv_text: str, job: Job, rules: str, facts: str = "") -> dict:
         json={
             "model": config.MODEL_ID,
             "messages": [
-                {"role": "system", "content": rules + cv_text},
+                {"role": "system", "content": rules},
                 {"role": "user", "content": vacancy},
             ],
             "temperature": 0,

@@ -34,7 +34,7 @@ def setup(tmp_path, monkeypatch):
 def test_model_lost_stops_evaluation(setup, monkeypatch):
     calls = []
 
-    def lost(cv_text, job, rules, facts=""):
+    def lost(job, rules, facts=""):
         calls.append(job.url)
         raise llm.ModelLost("got an answer from qwen/qwen3.8-27b")
 
@@ -50,7 +50,7 @@ def test_model_lost_stops_evaluation(setup, monkeypatch):
 
 def test_summary_counts_suitable_and_evaluated(setup, monkeypatch):
     scores = {"u1": 7, "u2": 3, "u3": 6}
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(scores[job.url]))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(scores[job.url]))
 
     assert worker.Worker()._refresh() == "Done: 2 matches out of 3 evaluated"
 
@@ -68,26 +68,28 @@ def test_unreadable_cv_stops_before_evaluation(setup, monkeypatch):
     assert worker.Worker()._refresh().startswith("Can't read your CV")
 
 
-def test_key_changes_with_the_cv_only(setup):
+def test_key_changes_with_the_model_and_rules_only(setup):
     s = settings.load()
-    key = worker.read_cv(s)[1]
-    # The profile is compared by the program again in an instant: the model's facts stay valid
+    text, key = worker.read_cv(s)
+    assert text == "Python developer" and key == worker.scoring_key(s)
+    # The model reads only the ad: the profile and the CV are compared by the program again in an instant
     assert worker.read_cv(replace(s, city="Brno", levels=["mid"], education="master", areas=["Frontend"]))[1] == key
     assert worker.read_cv(replace(s, main_skill="Go", skills=["Go"]))[1] == key
     Path(s.cv_path).write_text("Senior SQL developer", encoding="utf-8")  # temporary CV from the fixture
-    assert worker.read_cv(s)[1] != key
+    assert worker.read_cv(s)[1] == key
+    assert worker.scoring_key(replace(s, model="mistralai/ministral-3-3b")) != key
     assert worker.read_cv(None) is None
 
 
 def test_summary_uses_singular_for_one_match(setup, monkeypatch):
     scores = {"u1": 7, "u2": 3, "u3": 2}
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(scores[job.url]))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(scores[job.url]))
 
     assert worker.Worker()._refresh() == "Done: 1 match out of 3 evaluated"
 
 
 def test_evaluated_rows_carry_first_seen(setup, monkeypatch):
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(7))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(7))
     w = worker.Worker()
     rows = []
     w.evaluated.connect(rows.append)
@@ -111,7 +113,7 @@ def test_old_jobs_are_not_scored(setup, monkeypatch):
                                                        ("undated", "")]]
     monkeypatch.setattr(sources, "fetch_all", lambda s: ({"Jobicy": jobs}, {}))
     scored = []
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": scored.append(job.url) or model_answer(6))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": scored.append(job.url) or model_answer(6))
     worker.Worker()._refresh()
     assert sorted(scored) == ["month", "undated"]
 
@@ -120,7 +122,7 @@ def test_scoring_pauses_while_windows_is_busy(setup, monkeypatch):
     answers = iter([False, True])  # a full-screen game starts after the first job
     monkeypatch.setattr(worker.Worker, "pause_check", staticmethod(lambda: next(answers)))
     scored = []
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": scored.append(job.url) or model_answer(6))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": scored.append(job.url) or model_answer(6))
     w = worker.Worker()
     message = w._refresh()
     assert len(scored) == 1 and w.paused and message.startswith("Paused")
@@ -141,13 +143,13 @@ def test_no_model_no_loading(setup, monkeypatch):
     assert w._refresh() == "LM Studio isn't installed: click Get AI model"
     monkeypatch.setattr(lmstudio, "everything_ready", lambda model: True)
     monkeypatch.setattr(llm, "prepare", lambda model: None)
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(6))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(6))
     assert w._refresh() == "Done: 3 matches out of 3 evaluated"
     assert not w.model_missing
 
 
 def test_scoring_goes_on_with_the_copy_when_the_cv_file_is_gone(setup, monkeypatch):
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(7))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(7))
     worker.Worker()._refresh()  # the copy is made
     key = worker.read_cv(settings.load())[1]
     Path(settings.load().cv_path).unlink()
@@ -163,7 +165,7 @@ def test_a_big_scoring_waits_unless_asked(setup, monkeypatch):
     w = worker.Worker()
     assert w._refresh() == "3 jobs to score (about 1 min): click Start scoring"
     assert w.waiting == 3
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(7))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(7))
     w.manual = True  # the button, the setup's Start search, or Save in Settings
     assert w._refresh() == "Done: 3 matches out of 3 evaluated" and w.waiting == 0
 
@@ -172,7 +174,7 @@ def test_cancel_stops_after_the_current_job(setup, monkeypatch):
     w = worker.Worker()
     calls = []
 
-    def evaluate(cv_text, job, rules, facts=""):
+    def evaluate(job, rules, facts=""):
         calls.append(job.url)
         w.cancel()  # Save in Settings while this job is scored
         return model_answer(7)
@@ -186,7 +188,7 @@ def test_an_edited_cv_file_starts_over(setup, monkeypatch):
     w = worker.Worker()
     calls = []
 
-    def evaluate(cv_text, job, rules, facts=""):
+    def evaluate(job, rules, facts=""):
         calls.append(job.url)
         cv = Path(settings.load().cv_path)
         stat = cv.stat()
@@ -208,7 +210,7 @@ def test_the_scoring_never_overwrites_settings_saved_meanwhile(setup):
 
 
 def test_recount_gives_new_verdicts_without_the_model(setup, monkeypatch):
-    monkeypatch.setattr(llm, "evaluate", lambda cv_text, job, rules, facts="": model_answer(8))
+    monkeypatch.setattr(llm, "evaluate", lambda job, rules, facts="": model_answer(8))
     worker.Worker()._refresh()
     s = settings.load()
     key = worker.read_cv(s)[1]

@@ -49,18 +49,14 @@ def test_technologies_are_found_strictly():
 
 
 def test_facts_tell_the_model_what_the_ad_names():
-    known = grounding.cv_technologies(CPP_CV)
-    assert "C/C++" in known and "C#/.NET" not in known
-    text = grounding.facts(CSHARP_AD, known)
-    assert "C#/.NET" in text.split("Not in the CV:")[1]
-    assert "Git" in text.split("Not in the CV:")[0].split("in the candidate's CV:")[1]
-    assert "C/C++" not in text  # the CV's own languages are not "named in the ad"
+    assert grounding.facts(CSHARP_AD) == ("Technologies a program found written in this ad (it doesn't know "
+                                          "whether they are required): C#/.NET, SQL, Git.")
 
 
 def test_facts_when_the_ad_names_no_known_technology():
     vague = Job(url="v", source="Jobicy", title="Junior Developer", company="A", city="", published="",
                 description="Join our friendly team and grow with us.")
-    assert "no known technologies" in grounding.facts(vague, {"Python"})
+    assert "no known technologies" in grounding.facts(vague)
 
 
 def test_czech_word_forms_count():

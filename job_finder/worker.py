@@ -12,9 +12,10 @@ from job_finder.settings import Settings
 log = logging.getLogger(__name__)
 
 
-def cv_key(text: str, s: Settings) -> str:
-    """SHA-256 of the CV with the rules and the model: if any of them changes, earlier scores are outdated."""
-    return hashlib.sha256(f"{text}\n{llm.fingerprint(s)}".encode("utf-8")).hexdigest()
+def scoring_key(s: Settings) -> str:
+    """SHA-256 of the rules and the model: if either changes, earlier scores are outdated. Not the CV: the model
+    reads only the ad, the program compares it with the CV (spec section 23)."""
+    return hashlib.sha256(llm.fingerprint(s).encode("utf-8")).hexdigest()
 
 
 def read_cv(s: Settings | None) -> tuple[str, str] | None:
@@ -25,7 +26,7 @@ def read_cv(s: Settings | None) -> tuple[str, str] | None:
         text = settings.cv_text(s)
     except settings.CvError:
         return None
-    return text, cv_key(text, s)
+    return text, scoring_key(s)
 
 
 def recount(s: Settings) -> int:
@@ -111,7 +112,7 @@ class Worker(QObject):
             return _join(f"Can't read your CV: {error}. Check it in Settings", notes)
         if cv_note:
             notes.append(cv_note)
-        cv_hash = cv_key(cv_text, s)
+        cv_hash = scoring_key(s)
         skill_list = s.skills
         if not skill_list:
             return _join("No skills in Settings, evaluation skipped", notes)
@@ -178,7 +179,7 @@ class Worker(QObject):
                 self.paused = True
                 break
             try:
-                answer = llm.evaluate(cv_text, job, rules, grounding.facts(job, known))
+                answer = llm.evaluate(job, rules, grounding.facts(job))
                 # The verdict follows the settings saved now, also when Settings were saved during the pass
                 evaluation = grounding.verdict(answer, job, known, settings.load() or s)
             except llm.ModelLost:
