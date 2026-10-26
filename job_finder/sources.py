@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields
@@ -44,8 +45,34 @@ class Job:
                 setattr(self, field.name, "")
 
 
+HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"]
+BLOCKS = HEADINGS + ["p", "div", "ul", "ol", "li", "tr", "table", "section", "article", "blockquote", "pre"]
+BOLD_HEADING_CHARS = 80  # a paragraph that is only bold text up to this long is a heading ("Requirements:")
+
+
 def html_to_text(html: str | None) -> str:
-    return BeautifulSoup(html or "", "html.parser").get_text("\n", strip=True)
+    """An ad's text as the site lays it out (spec section 22): blocks apart by an empty line, a heading as
+    "## Heading", a list item as "• item"; a bold word or a link stays inside its sentence."""
+    soup = BeautifulSoup(html or "", "html.parser")
+    for br in soup.find_all("br"):
+        br.replace_with("\n")
+    for item in soup.find_all("li"):
+        for block in item.find_all(["p", "div"]):
+            block.unwrap()  # a paragraph inside a list item is just the item's text
+        item.insert(0, "• ")
+    for tag in soup.find_all(HEADINGS):
+        tag.insert(0, "## ")
+    for tag in soup.find_all("p"):
+        text = tag.get_text(strip=True)
+        bold = tag.find(["strong", "b"])
+        if bold and 0 < len(text) <= BOLD_HEADING_CHARS and bold.get_text(strip=True) == text:
+            tag.insert(0, "## ")
+    for tag in soup.find_all(BLOCKS):
+        tag.insert_before("\n\n")
+        tag.insert_after("\n\n")
+    lines = [re.sub(r"[ \t\r\f\v\xa0]+", " ", line).strip() for line in soup.get_text().split("\n")]
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    return re.sub(r"\n\n(?=• )", "\n", text)  # list items one under another
 
 
 SITE_NAMES = {"linkedin.com": "LinkedIn", "jobs.cz": "jobs.cz", "startupjobs.cz": "StartupJobs"}

@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from dataclasses import replace
 
 import pytest
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import QApplication, QDialog, QLabel, QSystemTrayIcon
 
@@ -594,10 +594,10 @@ def test_description_collapsed_then_shown(window):
     window.table.selectRow(0)
     assert window.d_description.isHidden() and window.description_button.text() == "Show description"
     window.description_button.click()
-    assert not window.d_description.isHidden() and window.d_description.text() == "Build REST APIs"
+    assert not window.d_description.isHidden() and "Build " in window.d_description.text()
     assert window.description_button.text() == "Collapse"
     window.table.selectRow(1)
-    assert window.d_description.text() == "Write tests"
+    assert "Write " in window.d_description.text() and "Build" not in window.d_description.text()
 
 
 def test_progress_shows_time_left(window, monkeypatch):
@@ -1338,6 +1338,18 @@ def test_a_long_skill_is_shortened_on_its_chip(window):
     chip = window.v_must_chips[0]
     assert "Mathematics (applied mathematics, numer…" in chip.text() and "probability" not in chip.text()
     assert chip.toolTip() == long and chip.accessibleName() == f"✕ {long}"
+
+
+def test_the_description_keeps_its_layout_and_colours_technologies(window):
+    verdict_row("d", model_answer(10), description="## Requirements\n• Python\n• Docker\n\nWe build things.")
+    window.load_rows()
+    window.table.selectRow(0)
+    window.toggle_description()
+    shown = window.d_description.text()
+    assert window.d_description.textFormat() == Qt.RichText
+    assert "font-weight:700'>Requirements</p>" in shown and shown.count("<li") == 2
+    assert f"color:{style.MATCH_COLORS['yes']}; font-weight:600'>Python<" in shown  # the test CV: "Python developer"
+    assert f"color:{style.MATCH_COLORS['no']}; font-weight:600'>Docker<" in shown
 
 
 def test_older_scores_keep_their_card(window):

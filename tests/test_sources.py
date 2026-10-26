@@ -64,9 +64,18 @@ def test_parse_juniorguru():
     assert jobs[0] == Job(
         url="https://www.jobs.cz/rpd/1/?utm_source=juniorguru", source="junior.guru",
         title="Junior Python vývojář", company="Firma s.r.o.", city="Prague", published="2026-10-12",
-        description="Hledáme\nPython\nvývojáře",
+        description="Hledáme Python vývojáře",  # an inline tag stays inside its sentence
     )
     assert (jobs[1].city, jobs[1].published, jobs[1].description) == ("Remote", "2026-10-10", "Testování")
+
+
+def test_html_to_text_keeps_sentences_headings_and_lists():
+    html = ("<h3>Who we are</h3><p>We use <b>Python</b> and <a href='#'>SQL</a>.</p>"
+            "<p><strong>Requirements:</strong></p><ul><li>Git</li><li><p>Docker, <em>Linux</em></p></li></ul>"
+            "<div><p>Line one<br>Line two</p></div><p>Salary   &amp; benefits</p>")
+    assert sources.html_to_text(html) == ("## Who we are\n\nWe use Python and SQL.\n\n## Requirements:\n"
+                                          "• Git\n• Docker, Linux\n\nLine one\nLine two\n\nSalary & benefits")
+    assert sources.html_to_text(None) == "" and sources.html_to_text("plain text") == "plain text"
 
 
 def test_parse_juniorguru_keeps_only_prague_or_remote():

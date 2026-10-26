@@ -215,10 +215,14 @@ def sync_cv(s: Settings) -> tuple[Settings, str]:
     return s, "your CV changed, so all jobs were scored again" if changed else ""
 
 
+def skill_pattern(name: str) -> re.Pattern:
+    """How a skill from the dictionary is found in a CV or an ad (stricter for everyday words, see CV_PATTERNS)."""
+    return CV_PATTERNS.get(name) or insights.pattern(name)
+
+
 def _cv_mentions(name: str, text: str) -> int:
-    """How many times a CV mentions a skill from the dictionary (stricter for everyday words, see CV_PATTERNS)."""
-    pattern = CV_PATTERNS.get(name)
-    return len(pattern.findall(text)) if pattern else insights.mentions(name, text)
+    """How many times a CV mentions a skill from the dictionary."""
+    return len(skill_pattern(name).findall(text))
 
 
 def detect_skills(text: str) -> list[str]:

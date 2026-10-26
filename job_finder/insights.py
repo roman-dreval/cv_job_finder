@@ -127,6 +127,11 @@ def mentions(name: str, text: str) -> int:
     return len(_PATTERNS[name].findall(text))
 
 
+def pattern(name: str) -> re.Pattern:
+    """How a requirement from the dictionary is found in a text."""
+    return _PATTERNS[name]
+
+
 @dataclass
 class Insights:
     total: int                            # evaluated jobs counted

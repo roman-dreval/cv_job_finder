@@ -13,7 +13,8 @@ from PySide6.QtWidgets import (
     QSizePolicy, QStackedWidget, QSystemTrayIcon, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from job_finder import busy, config, db, freshness, insights, llm, settings, sources, style, updates
+from job_finder import (busy, config, db, description, freshness, grounding, insights, llm, settings, sources,
+                        style, updates)
 from job_finder.flow_layout import FlowLayout
 from job_finder.settings import Settings
 from job_finder.worker import Worker, read_cv, recount
@@ -186,6 +187,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Job Finder")
         self.resize(1200, 750)
         self.rows: list[dict] = []        # found jobs scored above the threshold
+        self.cv_skills: set[str] = set()  # the CV's technologies: coloured in the description
         self.visible: list[dict] = []     # found jobs that pass the filters, in table order
         self.applied: list[dict] = []     # applications, newest first
         self.applied_by_key: dict[tuple[str, str], dict] = {}  # latest application by "company + title"
@@ -534,6 +536,7 @@ class MainWindow(QMainWindow):
         self.description_button.clicked.connect(self.toggle_description)
         description_head.addWidget(self.description_button)
         self.d_description = _label()
+        self.d_description.setTextFormat(Qt.RichText)  # made from the ad's text by description.to_html
         self.d_description.hide()
         box.addSpacing(18)
         box.addLayout(description_head)
@@ -830,6 +833,7 @@ class MainWindow(QMainWindow):
         cv = read_cv(self.settings)
         if cv:  # also jobs their source stopped listing in the last week: muted, with a note to check the link
             self.rows = db.list_jobs(cv[1], self.settings.min_score, config.GONE_DAYS)
+            self.cv_skills = grounding.cv_technologies(cv[0])
         elif self.settings is None:
             self.rows = []
         else:  # the CV can't be read: the list stays as it is, the status line says why
@@ -1039,7 +1043,7 @@ class MainWindow(QMainWindow):
         self.d_closed.setVisible(closed)
         if closed:
             self.d_closed.setText(f"No longer listed on {row['source']} — probably filled")
-        self.d_description.setText(db.description(row["url"]))
+        self.d_description.setText(description.to_html(db.description(row["url"]), self.cv_skills))
         self.d_description.setVisible(self.description_open)
         previous = None if is_application else self._previous_application(row)
         self.d_notice.setVisible(previous is not None)

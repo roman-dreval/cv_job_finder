@@ -71,6 +71,14 @@ def test_czech_word_forms_count():
     assert grounding.technologies("Pracujeme s daty a reporty.") == set()  # ordinary Czech words stay words
 
 
+def test_spans_say_where_technologies_are_written():
+    text = "Zkušenosti s Pythonem a C#, znalost Javascriptu výhodou; REST API."
+    assert [(text[start:end], name) for start, end, name in grounding.spans(text)] == [
+        ("Pythonem", "Python"), ("C#", "C#/.NET"), ("Javascriptu", "JavaScript"), ("REST", "REST API"),
+        ("API", "REST API")]
+    assert grounding.spans("Pracujeme s daty.") == []
+
+
 def test_a_strong_fit():
     result = verdict(facts())
     # must-have 2 of 2 (weight 2), nice-to-have 0 of 1 (weight 0.5): 4 of 4.5 = 0.89

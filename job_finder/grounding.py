@@ -62,6 +62,23 @@ def technologies(text: str) -> set[str]:
     return set(settings.detect_skills(_base_forms(text)))
 
 
+def spans(text: str) -> list[tuple[int, int, str]]:
+    """Where the dictionary's technologies are written in a text, also in Czech forms: (start, end, name) in
+    order, without overlaps (for colouring the ad in the card)."""
+    found = [(m.start(), m.end(), name) for name in insights.REQUIREMENTS if name not in settings.NOT_SKILLS
+             for m in settings.skill_pattern(name).finditer(text)]
+    for m in _CZECH_ENDINGS.finditer(text):
+        found += [(m.start(), m.end(), name) for name in technologies(m.group(1))]
+    for pattern, base in _CZECH_FORMS:
+        found += [(m.start(), m.end(), name) for m in pattern.finditer(text) for name in technologies(base)]
+    kept, end = [], 0
+    for start, stop, name in sorted(found, key=lambda span: (span[0], -span[1])):
+        if start >= end:
+            kept.append((start, stop, name))
+            end = stop
+    return kept
+
+
 def cv_technologies(cv_text: str) -> set[str]:
     """The candidate's technologies: from the CV, which the model reads too (so its key covers them)."""
     return technologies(cv_text)
