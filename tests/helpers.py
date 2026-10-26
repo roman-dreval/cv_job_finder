@@ -40,5 +40,5 @@ def model_answer(score: int) -> dict:
               8: dict(nice_to_have=skills(0, 2)), 7: dict(must_have=skills(3, 1)), 6: dict(must_have=skills(1, 1)),
               5: dict(must_have=skills(1, 2)), 4: dict(must_have=skills(1, 3)), 3: dict(areas=["QA / testing"]),
               2: dict(workplace="office", place="Brno"),
-              1: dict(workplace="office", place="Brno", languages=[{"language": "German", "level": "C1"}])}
+              1: dict(workplace="office", place="Brno", seniority="lead")}
     return {**facts, **shapes[score]}

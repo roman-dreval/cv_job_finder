@@ -51,6 +51,17 @@ LANGUAGE_WORDS = {
     "French": r"french|francouzštin\w*|francouzsky", "Spanish": r"spanish|španělštin\w*|španělsky",
     "Italian": r"italian|italštin\w*|italsky",
 }
+TWINS = {"Czech": "Slovak", "Slovak": "Czech"}  # one understands the other: either counts for both
+# The level an ad's words next to a language mean (a CEFR code wins); "native" only right next to it
+LEVEL_WORDS = [("NATIVE", r"native|mother tongue|rodil\w*"),
+               ("B2", r"fluen\w*|excellent|advanced|proficien\w*|strong|professional|perfect\w*|plynul\w*|výborn\w*|"
+                      r"pokročil\w*|perfektn\w*|aktivn\w*"),
+               ("B1", r"intermediate|good|working|communicat\w*|technical|dobr\w*|komunikativn\w*|technick\w*|"
+                      r"pracovn\w*"),
+               ("A2", r"basic|elementary|základn\w*")]
+LEVEL_NEAR, NATIVE_NEAR = 40, 12  # characters
+WELCOMED = re.compile(r"výhod\w*|advantage\w*|a plus|nice[- ]to[- ]have|preferred|welcome\w*|vítan\w*|uvítáme|"
+                      r"bonus\w*|není podmínkou|not required|not essential|optional", re.IGNORECASE)
 # The conditions' own facts are no skills: a degree, studies, a spoken language
 OTHER_FACTS = re.compile(r"degree|universit\w*|bachelor|master|education|student|graduate|"
                          + "|".join(LANGUAGE_WORDS.values()), re.IGNORECASE)
@@ -68,8 +79,8 @@ ALTERNATIVES = re.compile(r"\bor\b|\bany\b|one of|such as|e\.g\.|\bnebo\b|\bči\
 FILLER = {"and", "with", "of", "in", "the", "a", "an", "for", "on", "to", "experience", "knowledge", "skills", "skill",
           "understanding", "familiarity", "familiar", "basic", "basics", "strong", "good", "solid", "proficiency",
           "proficient", "working", "hands-on", "practical", "advanced", "deep", "excellent", "ability", "using",
-          "usage", "use", "concepts", "concept", "fundamentals", "principles", "tools", "tool", "etc", "e.g.", "including",
-          "like", "such", "as", "or", "at", "least", "one", "is", "are", "be"}
+          "usage", "use", "concepts", "concept", "fundamentals", "principles", "tools", "tool", "etc", "e.g.",
+          "including", "like", "such", "as", "or", "at", "least", "one", "is", "are", "be"}
 
 # Czech puts endings on technology names ("v Pythonu", "s Gitem", "Linuxovým shellem"), and the dictionary looks
 # for whole words: such forms are turned back into the name first
@@ -242,24 +253,65 @@ def _level(extraction: dict, job: Job, s: Settings) -> dict:
     return _condition("Level", False, f"{label} · you: {', '.join(levels)}", f"{label} role")
 
 
-def _language(extraction: dict, s: Settings) -> dict:
-    required = [item for item in extraction.get("languages") or [] if isinstance(item, dict) and item.get("language")]
-    if not required:
-        return _condition("Language", True, "Not asked")
+def _sentence(ad: str, start: int, end: int) -> str:
+    """The sentence (or line) of the ad around text[start:end]."""
+    left = max(ad.rfind(mark, 0, start) for mark in ".;!?\n") + 1
+    rights = [i for i in (ad.find(mark, end) for mark in ".;!?\n") if i != -1]
+    return ad[left:min(rights) if rights else len(ad)]
+
+
+def _ad_level(name: str, ad: str) -> tuple[bool, str | None]:
+    """Whether the ad requires the language (writes it, not only as "an advantage") and the level the words next to
+    it mean: a CEFR code first, else the closest level word; None: no level word."""
+    mentions = [m for m in re.finditer(rf"\b(?:{LANGUAGE_WORDS[name]})", ad, re.IGNORECASE)
+                if not WELCOMED.search(_sentence(ad, m.start(), m.end()))]
+    codes, words = [], []
+    for m in mentions:
+        start = max(0, m.start() - LEVEL_NEAR)
+        window = ad[start:m.end() + LEVEL_NEAR]
+        for found in re.finditer(r"\b(?:[ABC][12])\b|" + "|".join(rf"\b(?:{w})" for _, w in LEVEL_WORDS), window,
+                                 re.IGNORECASE):
+            at = start + found.start()
+            distance = m.start() - (at + len(found.group(0))) if at < m.start() else at - m.end()
+            code = found.group(0).upper()
+            if code in RANKS:
+                codes.append((distance, code))
+                continue
+            level = next(level for level, w in LEVEL_WORDS if re.fullmatch(w, found.group(0), re.IGNORECASE))
+            if level != "NATIVE" or distance <= NATIVE_NEAR:  # "native English", not "with native speakers of…"
+                words.append((distance, level))
+    best = min(codes or words, default=None)
+    return bool(mentions), best[1] if best else None
+
+
+def _language(extraction: dict, ad: str, s: Settings) -> dict:
+    """The model says which languages the ad needs (spec section 23); the program keeps those the ad writes as
+    required and takes their level from the ad's words: the model puts "native" everywhere."""
     texts, missing = [], []
-    for item in required:
-        name = settings.language_name(str(item["language"]))
-        level = str(item.get("level") or "").strip()
-        need = RANKS.get(level.upper())
-        text = f"{name} {level}" if need else name
-        have = next((lvl for known, lvl in s.languages.items() if known.lower() == name.lower()), None)
+    for item in extraction.get("languages") or []:
+        said = str(item.get("language") or "") if isinstance(item, dict) else ""
+        options = [(name, level) for name in LANGUAGE_WORDS
+                   if re.search(rf"\b(?:{LANGUAGE_WORDS[name]})", said, re.IGNORECASE)
+                   for written, level in [_ad_level(name, ad)] if written]
+        if not options:
+            continue  # a language the ad doesn't write, or only as "an advantage": the model's guess
+        text = " or ".join(f"{name} {level.replace('NATIVE', 'native')}" if level else name
+                           for name, level in options)
         texts.append(text)
-        if have is None or (need and RANKS.get(have.upper(), 0) < need - 1):  # one level short is worth a try
+        haves = {name: next((have for known, have in s.languages.items()
+                             if known.lower() in (name.lower(), TWINS.get(name, "").lower())), None)
+                 for name, _ in options}
+        if not any(haves[name] is not None and (level is None or RANKS.get(haves[name].upper(), 0) >= RANKS[level] - 1)
+                   for name, level in options):  # one level short is worth a try
+            have = ", ".join(f"{name} {haves[name]}" if len(options) > 1 else haves[name]
+                             for name, _ in options if haves[name]) or "not listed"
             missing.append((text, have))
+    if not texts:
+        return _condition("Language", True, "Not asked")
     if not missing:
         return _condition("Language", True, ", ".join(texts))
     text, have = missing[0]
-    return _condition("Language", False, f"{text} · you: {have or 'not listed'}", f"Requires {text}")
+    return _condition("Language", False, f"{text} · you: {have}", f"Requires {text}")
 
 
 def _location(extraction: dict, s: Settings) -> dict:
@@ -325,7 +377,7 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
     nice = _skills(extraction.get("nice_to_have"), False, named, known, cv_text)
     must += _title_skills(must, nice, job, known)
     conditions = [_degree(extraction, ad, s), _experience(extraction, ad, s), _level(extraction, job, s),
-                  _language(extraction, s), _location(extraction, s), _area(extraction, s)]
+                  _language(extraction, ad, s), _location(extraction, s), _area(extraction, s)]
     failed = [c for c in conditions[:-1] if not c["ok"]]
     points = sum(WEIGHTS[i["required"]] * MATCH[i["match"]] for i in must + nice)
     total = sum(WEIGHTS[i["required"]] for i in must + nice)

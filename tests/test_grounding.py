@@ -182,16 +182,41 @@ def test_the_level_of_the_role():
     assert condition(verdict(facts(seniority="not stated"), students), "Level")["detail"] == "Not stated"
 
 
-def test_spoken_languages():
-    czech = facts(languages=[{"language": "Czech", "level": "C1"}])
-    result = verdict(czech)
+def spoken(text, *names):
+    """The Language condition when the model says the ad needs these languages at a native level (it often
+    does) and the ad's text is this."""
+    extraction = facts(languages=[{"language": name, "level": "native"} for name in names])
+    return condition(verdict(extraction, replace(AD, description=text)), "Language")
+
+
+def test_the_level_of_a_language_is_read_from_the_ad():
+    result = verdict(facts(languages=[{"language": "Czech", "level": "native"}]),
+                     replace(AD, description="Czech C1 required.\nEnglish B2 is a plus."))
     assert (result["verdict"], result["reason"]) == ("Out of reach", "Requires Czech C1")
     assert condition(result, "Language")["detail"] == "Czech C1 · you: B1"
-    assert condition(verdict(facts(languages=[{"language": "English", "level": "C1"}])), "Language")["ok"]  # B2
-    assert condition(verdict(facts(languages=[{"language": "english", "level": "not stated"}])), "Language")["ok"]
-    german = verdict(facts(languages=[{"language": "German", "level": "not stated"}]))
-    assert condition(german, "Language")["detail"] == "German · you: not listed"
+    assert spoken("Fluent English (C1).", "English")["detail"] == "English C1"  # B2 is one level short: fine
+    assert spoken("Hledáme plynulou češtinu.", "Czech")["detail"] == "Czech B2"
+    assert spoken("Dobrou angličtinu a plynulou češtinu.", "English", "Czech")["detail"] == "English B1, Czech B2"
+    assert spoken("Základní angličtinu pro dokumentaci.", "English")["detail"] == "English A2"
+    assert spoken("Pracovní komunikace v angličtině.", "English")["detail"] == "English B1"
+    native = spoken("Native English speaker wanted.", "English")
+    assert (native["ok"], native["detail"]) == (False, "English native · you: B2")
+    assert spoken("German is required.", "German")["detail"] == "German · you: not listed"
+    assert spoken("English, Czech", "english")["detail"] == "English"  # no level word: the language itself
+
+
+def test_a_language_the_ad_doesnt_require_is_no_condition():
+    assert spoken("We are a friendly team.", "German")["detail"] == "Not asked"  # the model's guess
+    assert spoken("Němčina – není podmínkou, ale je vítanou výhodou.", "German")["detail"] == "Not asked"
+    assert spoken("Spolupracujete s kolegy v Německu.", "German")["detail"] == "Not asked"  # a country
+    assert spoken("Jazyk vylepšíte s rodilými mluvčími na lekcích angličtiny.", "English")["detail"] == "English"
+    assert spoken("Based in the Czech Republic.", "Czech")["detail"] == "Not asked"
     assert condition(verdict(facts(languages=[])), "Language")["detail"] == "Not asked"
+
+
+def test_czech_and_slovak_count_for_each_other():
+    assert spoken("Domluvíš se česky nebo slovensky.", "Czech", "Slovak")["ok"]
+    assert spoken("Czech or Slovak – advanced level.", "Czech or Slovak")["detail"] == "Czech B2 or Slovak B2"
 
 
 def test_the_place_of_work():
