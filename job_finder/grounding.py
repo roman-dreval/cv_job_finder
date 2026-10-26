@@ -46,7 +46,8 @@ SOFT_SKILLS = re.compile(
 LANGUAGE_WORDS = {
     "English": r"english|angličtin\w*|anglicky|anglick\w*", "Czech": r"czech(?!\s+republic)(?!ia)|češtin\w*|česky",
     "Slovak": r"slovak(?!ia)\w*|slovenštin\w*|slovensky", "German": r"german(?!y)|deutsch|němčin\w*|německy",
-    "Polish": r"polish|polštin\w*|polsky", "Russian": r"russian|ruštin\w*|rusky", "Ukrainian": r"ukrainian|ukrajinštin\w*",
+    "Polish": r"polish|polštin\w*|polsky", "Russian": r"russian|ruštin\w*|rusky",
+    "Ukrainian": r"ukrainian|ukrajinštin\w*",
     "French": r"french|francouzštin\w*|francouzsky", "Spanish": r"spanish|španělštin\w*|španělsky",
     "Italian": r"italian|italštin\w*|italsky",
 }
@@ -59,15 +60,15 @@ GENERIC = re.compile(r"debug\w*|troubleshoot\w*|code reviews?|refactor\w*|bug[- 
                      r"performance optimi[sz]\w*", re.IGNORECASE)
 GENERIC_TECH = {"Debugging/performance"}
 # Technologies close enough: the CV has one of a group, the ad asks for another → similar
-SIMILAR = [{"Django", "Flask", "FastAPI"}, {"React", "Vue", "Angular", "Frontend (any)"}, {"SQL", "PostgreSQL", "MySQL"},
-           {"MongoDB", "Redis", "NoSQL", "Elasticsearch"}, {"AWS", "Azure", "GCP", "Cloud (any)"},
-           {"JavaScript", "TypeScript"}]
+SIMILAR = [{"Django", "Flask", "FastAPI"}, {"React", "Vue", "Angular", "Frontend (any)"},
+           {"SQL", "PostgreSQL", "MySQL"}, {"MongoDB", "Redis", "NoSQL", "Elasticsearch"},
+           {"AWS", "Azure", "GCP", "Cloud (any)"}, {"JavaScript", "TypeScript"}]
 ALTERNATIVES = re.compile(r"\bor\b|\bany\b|one of|such as|e\.g\.|\bnebo\b|\bči\b", re.IGNORECASE)
 # Words that say nothing about a skill outside the dictionary: the rest is looked for in the CV
 FILLER = {"and", "with", "of", "in", "the", "a", "an", "for", "on", "to", "experience", "knowledge", "skills", "skill",
           "understanding", "familiarity", "familiar", "basic", "basics", "strong", "good", "solid", "proficiency",
-          "proficient", "working", "hands-on", "practical", "advanced", "deep", "excellent", "ability", "using", "usage",
-          "use", "concepts", "concept", "fundamentals", "principles", "tools", "tool", "etc", "e.g.", "including",
+          "proficient", "working", "hands-on", "practical", "advanced", "deep", "excellent", "ability", "using",
+          "usage", "use", "concepts", "concept", "fundamentals", "principles", "tools", "tool", "etc", "e.g.", "including",
           "like", "such", "as", "or", "at", "least", "one", "is", "are", "be"}
 
 # Czech puts endings on technology names ("v Pythonu", "s Gitem", "Linuxovým shellem"), and the dictionary looks
@@ -155,8 +156,8 @@ def _phrase_in_cv(text: str, cv_text: str) -> bool:
 
 
 def match(skill: str, named: set[str], known: set[str], cv_text: str) -> str:
-    """✓ / ≈ / ✕ of one requirement of the ad (spec section 23): "yes", "similar" or "no". Only the technologies the
-    ad names count; of alternatives ("Python, Java or Go") one is enough; a part of them, or a technology of the
+    """✓ / ≈ / ✕ of one requirement of the ad (spec section 23): "yes", "similar" or "no". Only the technologies
+    the ad names count; of alternatives ("Python, Java or Go") one is enough; a part of them, or a technology of the
     same group (Django for FastAPI), is similar. Another programming language is never similar: C# is not C++."""
     core = _core(skill)
     found = (technologies(core) - GENERIC_TECH) & named
