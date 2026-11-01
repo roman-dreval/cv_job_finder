@@ -91,10 +91,10 @@ Only the requests to the job sites go out. Your CV and the jobs stay on your mac
 About 20 minutes, most of it waiting for downloads. You don't need Python.
 
 > [!IMPORTANT]
-> **You need** Windows 10 or 11, a graphics card that LM Studio supports, about 8 GB of free disk
+> **You need** Windows 10 or 11, a graphics card that LM Studio supports, about 10 GB of free disk
 > space and your CV as a PDF, Markdown or text file (a PDF with real text, not a scan).
-> With 8 GB of video memory or more you get the full model; with less, the app picks a smaller one,
-> which scores a bit less precisely.
+> With 10 GB of video memory or more you get the full model (Gemma 4 12B); with less, the app picks a
+> smaller one (Gemma 4 E4B), which reads the ads a bit less precisely.
 
 ### Step 1 · LM Studio
 
@@ -115,7 +115,7 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
 ### Step 3 · First start
 
 1. **AI model.** If LM Studio or the AI model is missing, the setup starts with them. The model downloads
-   with one click: about 6 GB, or 3 GB for the smaller one. You can go on while it downloads.
+   with one click: about 7.5 GB, or 6 GB for the smaller one. You can go on while it downloads.
 2. **Setup.** Pick your CV, check the skills the app found in it and choose your main skill, like
    Python or Java. Then the kinds of work you want (Backend, Data, QA…), your city, whether remote is fine and
    your level (you can pick several, like Intern and Junior). Last, your education, work experience and the
@@ -148,7 +148,7 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
 - **The description** in the card keeps the site's paragraphs, headings and lists, and colours the technologies:
   green if your CV has them, red if not.
 - **Games and the model share the video memory**, so the app pauses scoring while a full-screen game
-  is running and picks it up later.
+  is running and picks it up later. A film in a full-screen browser or player doesn't pause it.
 - **Updating:** the app downloads a new version by itself and shows a green **Restart to update** button
   (and a notification, if it's in the tray). Click it: Job Finder closes, updates and opens again in a few
   seconds. If you don't, the update is installed when you quit the app. Your jobs, applications and settings
@@ -169,7 +169,7 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
 | "Windows protected your PC" | Click **More info** → **Run anyway**. |
 | "Job Finder is running. Close it…" during setup | Right-click the icon next to the clock → **Quit**, then run the setup again. |
 | The **AI model** step or **Getting ready** says LM Studio isn't installed, but it is | Open LM Studio once and click **Check again**. |
-| The model download failed | Check the internet connection and click **Download model** again, or download "Ministral 3" in LM Studio. |
+| The model download failed | Check the internet connection and click **Download model** again, or download "Gemma 4" in LM Studio. |
 | A green **Get AI model** button at the top | LM Studio or the AI model is missing. Click it and follow the window; the jobs are scored when the download has finished. |
 | `LM Studio: model failed to load` | Wait until the model has downloaded, or close games and other heavy apps to free video memory. Then click **Refresh**. |
 | Windows Security or Smart App Control blocks the setup | Allow it in Windows Security, or run the app from the source code (below). |
