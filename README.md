@@ -24,75 +24,27 @@ checking job boards every day got old fast.
 
 ## What it does
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-🔎 **Seven job sites**<br>
-junior.guru, Úřad práce, Himalayas, Jobicy, Working Nomads, Remote OK and We Work Remotely. Your
-region of Czechia and remote jobs open to it.
-
-</td>
-<td width="50%" valign="top">
-
-🤖 **A clear verdict**<br>
-Strong fit, Worth a try, Stretch or Out of reach, with the reason: "Requires a Master's degree", "3 of 4
-must-haves". The AI reads only the ad, the app checks it against your CV.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-⭐ **The good ones first**<br>
-Jobs scored 5 or more, best first, new ones marked. Jobs that don't mention your skills or are older
-than a month are skipped. **Hide removed** hides the ones their site no longer lists.
-
-</td>
-<td valign="top">
-
-♻️ **Old jobs spotted**<br>
-Sites bump old listings so they look new. The app remembers when it first saw a job and marks
-reposts.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-📋 **Your applications**<br>
-Notes, accepted or rejected, and how long you've been waiting for an answer.
-
-</td>
-<td valign="top">
-
-📚 **What to learn next**<br>
-The Insights tab counts the skills jobs want that you don't have yet.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-🔔 **Works in the background**<br>
-Sits in the tray, looks for new jobs every 3 hours and notifies you when one scores 7 or more.
-
-</td>
-<td valign="top">
-
-🔒 **Stays on your computer**<br>
-Only the requests to the job sites go out. Your CV and the jobs stay on your machine.
-
-</td>
-</tr>
-</table>
+- **Seven job sites.** junior.guru, Úřad práce, Himalayas, Jobicy, Working Nomads, Remote OK and We Work
+  Remotely: your region of Czechia and remote jobs open to it.
+- **A clear verdict.** Strong fit, Worth a try, Stretch or Out of reach, with the reason ("Requires a Master's
+  degree", "3 of 4 must-haves"). The AI reads only the ad; the app checks it against your CV.
+- **The good ones first.** Jobs scored 5 or more, best first, new ones marked. Jobs that don't mention your
+  skills or are older than a month are skipped; **Hide removed** hides the ones their site no longer lists.
+- **Old jobs spotted.** Sites bump old listings so they look new; the app remembers when it first saw a job
+  and marks reposts.
+- **Your applications.** Notes, accepted or rejected, and how long you've been waiting for an answer.
+- **What to learn next.** The Insights tab counts the skills jobs want that you don't have yet.
+- **Works in the background.** Sits in the tray, looks for new jobs every 3 hours and notifies you when one
+  scores 7 or more.
+- **Stays on your computer.** Only the requests to the job sites go out. Your CV and the jobs stay on your
+  machine.
 
 ## What's new
 
 **1.6.0**
 - A stronger AI model, **Gemma 4 12B** (Ministral 3 8B before): it reads the ads more precisely and invents
   fewer skills. The app offers to download it; the old model can be deleted in LM Studio → My Models.
-- A job that requires Czech or EU citizenship gets an amber **⚠ warning** in the card.
+- A job that requires Czech or EU citizenship gets an amber **warning** in the card.
 - **Hide removed** above the list hides the jobs their site no longer lists.
 - A film in a full-screen browser or player no longer pauses the scoring; games still do.
 
@@ -183,7 +135,7 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
   then marks each skill ✓ (in your CV), ≈ (a similar skill, like Flask for FastAPI, or a part of it) or ✕, and
   checks six conditions against your profile: degree, experience, level, language (its level read from the ad's
   own words), location and area. A job that asks for Czech or EU citizenship keeps its score but gets an amber
-  ⚠ warning in the card. One that you don't meet makes the job **Out of reach**, and the card says
+  warning in the card. One that you don't meet makes the job **Out of reach**, and the card says
   which; another area keeps it aside. Otherwise the skills decide: **Strong fit**, **Worth a try** or
   **Stretch**. Required skills make 80 % of it and welcome ones a 20 % bonus; an ad that names fewer than three
   requirements is at most Worth a try.
