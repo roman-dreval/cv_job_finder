@@ -168,7 +168,8 @@ def test_the_rules_ask_for_the_ads_facts_without_the_candidate():
     rules = llm.render_rules(Settings())
     assert "You don't see the candidate" in rules and "CV" not in rules
     assert "at most 8" in rules and 'write them together with "or"' in rules
-    assert "not what the person will do or learn" in rules
+    assert "not what the person will do or learn" in rules and "never from its duties" in rules
+    assert "nor an interest it hopes for" in rules and "fields of study" in rules
     assert "Machine learning / AI" in rules and '"Not IT"' in rules  # the areas to choose from
     properties = llm.SCHEMA["properties"]
     areas = properties["areas"]["items"]["enum"]

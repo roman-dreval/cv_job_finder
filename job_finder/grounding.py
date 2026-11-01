@@ -64,7 +64,7 @@ LEVEL_NEAR, NATIVE_NEAR = 40, 12  # characters
 WELCOMED = re.compile(r"výhod\w*|advantage\w*|a plus|nice[- ]to[- ]have|preferred|welcome\w*|vítan\w*|uvítáme|"
                       r"bonus\w*|není podmínkou|not required|not essential|optional", re.IGNORECASE)
 # The conditions' own facts are no skills: a degree, studies, a spoken language
-OTHER_FACTS = re.compile(r"degree|universit\w*|bachelor|master|education|student|graduate|"
+OTHER_FACTS = re.compile(r"degree|universit\w*|bachelor|master|education|student|graduate|\bfields?\b|background|"
                          + "|".join(LANGUAGE_WORDS.values()), re.IGNORECASE)
 # What every developer does: no requirement to check in a CV (spec section 23)
 GENERIC = re.compile(r"debug\w*|troubleshoot\w*|code reviews?|refactor\w*|bug[- ]?fix\w*|feature implementation|"
@@ -328,7 +328,9 @@ def _location(extraction: dict, s: Settings) -> dict:
             return _condition("Location", False, f"Remote, {place}", f"Remote only for {place}")
         return _condition("Location", True, f"Remote, {place}" if place else "Remote")
     if workplace in ("office", "hybrid"):
-        if not fine:
+        # "Kladno, Czech Republic": the country says nothing, the city does
+        city = re.sub(rf"(?:{FINE_PLACES})(?:\s+republi\w*)?", " ", place, flags=re.IGNORECASE).strip(" ,;-")
+        if not (own or not city):
             return _condition("Location", False, f"{place}, {workplace}", f"An office in {place}")
         return _condition("Location", True, f"{place}, {workplace}" if place else workplace.capitalize())
     return _condition("Location", True, place or "Not stated")

@@ -136,7 +136,8 @@ def test_a_skill_outside_the_dictionary_is_looked_for_in_one_line_of_the_cv():
 def test_what_is_not_a_requirement_to_check_is_left_out():
     result = verdict(facts(must_have=["Python", "debugging and code review", "Debugging", "ability to explain results",
                                       "Bachelor's degree in CS", "Fluent English", "analytical thinking",
-                                      "3+ years Python", "teamwork", "Vue.js"], nice_to_have=[]))
+                                      "3+ years Python", "teamwork", "Vue.js",
+                                      "Economics, finance or another quantitative field"], nice_to_have=[]))
     assert marks(result["must"]) == [("Python", "yes")]  # Vue.js: the ad doesn't name it
 
 
@@ -237,6 +238,10 @@ def test_the_place_of_work():
     assert (us["verdict"], us["reason"]) == ("Out of reach", "Remote only for the US")
     assert not condition(verdict(facts(workplace="office", place="Brno")), "Location")["ok"]
     assert condition(verdict(facts(workplace="office", place="Praha 7")), "Location")["ok"]
+    # The country next to the city doesn't make an office in another city fine
+    assert not condition(verdict(facts(workplace="hybrid", place="Kladno, Czech Republic")), "Location")["ok"]
+    assert condition(verdict(facts(workplace="office", place="Praha, Czech Republic")), "Location")["ok"]
+    assert condition(verdict(facts(workplace="office", place="Czech Republic")), "Location")["ok"]  # no city
     office_wanted = replace(S, remote=False)
     assert not condition(verdict(facts(workplace="remote", place=""), s=office_wanted), "Location")["ok"]
     assert condition(verdict(facts(workplace="not stated", place="")), "Location")["detail"] == "Not stated"
