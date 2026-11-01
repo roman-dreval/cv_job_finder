@@ -17,9 +17,10 @@
 
 ![The main window](docs/screenshots/found.png)
 
-Job Finder downloads new listings, drops the ones that don't match your CV, and asks an AI model
-running on your own graphics card to score the rest from 1 to 10 and explain why. I made it while
-looking for my first Python job in Prague: checking job boards every day got old fast.
+Job Finder downloads new listings, drops the ones that don't match your CV, has an AI model running on
+your own graphics card read the rest, and gives each job a clear verdict with the reason: Strong fit,
+Worth a try, Stretch or Out of reach. I made it while looking for my first Python job in Prague:
+checking job boards every day got old fast.
 
 ## What it does
 
@@ -86,6 +87,46 @@ Only the requests to the job sites go out. Your CV and the jobs stay on your mac
 </tr>
 </table>
 
+## What's new
+
+**1.6.0**
+- A stronger AI model, **Gemma 4 12B** (Ministral 3 8B before): it reads the ads more precisely and invents
+  fewer skills. The app offers to download it; the old model can be deleted in LM Studio → My Models.
+- A job that requires Czech or EU citizenship gets an amber **⚠ warning** in the card.
+- **Hide removed** above the list hides the jobs their site no longer lists.
+- A film in a full-screen browser or player no longer pauses the scoring; games still do.
+
+**1.4.1**
+- The AI reads only the ad, never your CV, and lists what the ad asks for; the app checks each skill against
+  your CV itself. No more 10/10 for an ad whose skills you mostly don't have.
+- The level of a language comes from the ad's own words ("fluent", "C1", "basic"); a language that's only
+  "an advantage" isn't required.
+- A new CV no longer needs scoring again: the verdicts follow it in seconds.
+- The job description keeps the site's paragraphs, headings and lists, and colours the technologies:
+  green if your CV has them, red if not.
+
+![A job's description with the technologies coloured](docs/screenshots/description.png)
+
+**1.4.0**
+- Verdicts instead of "7 out of 10": Strong fit, Worth a try, Stretch, Out of reach or Other area, with the
+  reason ("Requires a Master's degree", "3 of 4 must-haves") and the conditions behind it.
+- Your profile in Settings: education, work experience and the kinds of work you want.
+- **Start scoring**: a big scoring waits for your click, and Settings stay open while it runs.
+
+<details>
+<summary>Earlier versions</summary>
+
+<br>
+
+- **1.3.1** — your CV is copied into the app, so a moved, deleted or busy file doesn't empty the list.
+- **1.3.0** — updates install themselves: click **Restart to update**.
+- **1.2.0** — the setup gets the AI model for you; junior.guru jobs show where they really come from; C++ and
+  C# are never mixed up.
+- **1.1.0** — the app tells you when a new version is out.
+- **1.0** — the first release: seven job sites, scores, applications, Insights, the tray.
+
+</details>
+
 ## Installing
 
 About 20 minutes, most of it waiting for downloads. You don't need Python.
@@ -120,7 +161,7 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
    Python or Java. Then the kinds of work you want (Backend, Data, QA…), your city, whether remote is fine and
    your level (you can pick several, like Intern and Junior). Last, your education, work experience and the
    languages you speak.
-3. **Start search.** The first scoring takes a while: about 8 seconds per job, so 20–40 minutes on an
+3. **Start search.** The first scoring takes a while: about 12 seconds per job, so 30–90 minutes on an
    RTX 3060. Jobs appear as they're scored, so you can start reading right away. Later only new jobs
    are scored.
 
@@ -200,8 +241,8 @@ over the shortcut.
 - **Build the setup:** `powershell -ExecutionPolicy Bypass -File build.ps1` → `dist\JobFinder-Setup.exe`
 - **Run the tests:** `.venv\Scripts\python -m pytest tests -q` (a few seconds, no internet or LM Studio needed)
 - **Models and job site queries:** `job_finder/config.py`
-- **Scoring rules:** a plain-text template in `job_finder/llm.py`. Changing it, or your CV, re-scores
-  every job on the next refresh.
+- **What the AI is asked:** `RULES` in `job_finder/llm.py` (changing it re-scores every job on the next
+  refresh). **How a verdict is counted:** `job_finder/grounding.py` (applies at once, without the AI).
 
 </details>
 
