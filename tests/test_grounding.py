@@ -232,17 +232,22 @@ def test_czech_and_slovak_count_for_each_other():
     assert spoken("Czech or Slovak – advanced level.", "Czech or Slovak")["detail"] == "Czech B2 or Slovak B2"
 
 
-def test_a_required_citizenship_rules_out():
-    bis = replace(AD, description="Požadujeme: znalost Pythonu. Trestní bezúhonnost. Státní občanství ČR.")
+def test_a_required_citizenship_is_a_warning():
+    bis = replace(AD, description="Required: Python, SQL, Git. Trestní bezúhonnost. Státní občanství ČR.")
     result = verdict(facts(citizenship="Czech"), bis)
-    assert (result["verdict"], result["reason"]) == ("Out of reach", "Requires Czech citizenship")
-    assert condition(result, "Citizenship")["detail"] == "Czech citizenship required · you: not set in Settings"
-    assert condition(verdict(facts(citizenship="Czech"), bis, s=replace(S, citizenship="czech")), "Citizenship")["ok"]
+    # The score stays (the profile has no citizenship to compare with); the card warns
+    assert (result["verdict"], result["score"]) == ("Strong fit", 10)
+    assert result["reason"] == "3 of 3 must-haves · ⚠ Requires Czech citizenship"
+    assert condition(result, "Citizenship") == {"name": "Citizenship", "ok": True, "warn": True,
+                                                "detail": "Czech citizenship required",
+                                                "reason": "Requires Czech citizenship"}
+    assert result["risks"] == ["Requires Czech citizenship"]
     eu = replace(AD, description="Python. EU citizenship is required.")
-    assert condition(verdict(facts(citizenship="EU"), eu, s=replace(S, citizenship="eu")), "Citizenship")["ok"]
-    assert not condition(verdict(facts(citizenship="EU"), eu, s=replace(S, citizenship="other")), "Citizenship")["ok"]
+    assert condition(verdict(facts(citizenship="EU"), eu), "Citizenship")["detail"] == "EU citizenship required"
     us = replace(AD, description="The candidate must be a U.S. citizen with an active security clearance.")
     assert condition(verdict(facts(citizenship="US"), us), "Citizenship")["reason"] == "Requires US citizenship"
+    brno = verdict(facts(citizenship="Czech", workplace="office", place="Brno"), bis)
+    assert brno["reason"] == "An office in Brno"  # out of reach anyway: the first rule-out says why
 
 
 def test_citizenship_only_counts_when_the_ad_asks_for_it():
@@ -252,7 +257,7 @@ def test_citizenship_only_counts_when_the_ad_asks_for_it():
     czech = replace(AD, description="Zaměstnáváme lidi bez ohledu na původ, náboženství nebo občanství.")
     assert condition(verdict(facts(citizenship="Czech"), czech), "Citizenship")["detail"] == "Not asked"
     assert condition(verdict(facts(citizenship="none")), "Citizenship")["detail"] == "Not asked"
-    assert condition(verdict(facts()), "Citizenship")["ok"]  # an answer from before 1.6.0
+    assert not condition(verdict(facts()), "Citizenship")["warn"]  # an answer from before 1.6.0
 
 
 def test_the_place_of_work():

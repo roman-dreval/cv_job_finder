@@ -1332,6 +1332,17 @@ def test_card_shows_the_verdict_band_conditions_and_skills(window):
     assert window.v_about.text() == "Builds the backend of a booking site."
 
 
+def test_card_warns_about_a_required_citizenship(window):
+    verdict_row("c", {**model_answer(10), "citizenship": "Czech"}, description="Python. Státní občanství ČR.")
+    window.load_rows()
+    window.table.selectRow(0)
+    mark, _, detail = next(row for row in window.v_conditions if row[1].text() == "Citizenship")
+    assert (mark.text(), detail.text()) == ("⚠", "Czech citizenship required")
+    assert style.MATCH_COLORS["similar"] in mark.styleSheet()  # amber: a warning, not a rule-out
+    assert window.v_title.text() == "STRONG FIT · 10/10"
+    assert window.v_reason.text() == "3 of 3 must-haves · ⚠ Requires Czech citizenship"
+
+
 def test_card_says_why_a_job_is_out_of_reach(window):
     use_settings(config.CV_PATH, min_score=1)  # show everything, also what is out of reach
     verdict_row("m", {**model_answer(10), "degree": "master"}, description="An MSc in Mathematics is required.")

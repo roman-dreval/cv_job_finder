@@ -17,8 +17,8 @@ from job_finder.window import _label
 PAGES = {  # page: title, one-line hint
     "cv": ("Your CV", "The file the AI compares jobs with, and the skills a job must mention to be scored."),
     "search": ("What you're looking for", "The kind of work you want, where and at what level."),
-    "languages": ("About you", "Jobs that ask for a degree, years of experience, a language level or a citizenship "
-                               "you don't have are marked Out of reach."),
+    "languages": ("About you", "Jobs that ask for a degree, years of experience or a language level you don't "
+                               "have are marked Out of reach."),
 }
 WELCOME = ("Job Finder collects fresh jobs from several sites, keeps the ones that mention your skills and has a "
            "local AI model score each of them against your CV.\n\n"
@@ -166,7 +166,6 @@ class SettingsForm(QObject):
         self.education_box.currentIndexChanged.connect(self._profile_changed)
         self.experience_box = _choice(settings.EXPERIENCE)
         self.experience_box.currentIndexChanged.connect(self._profile_changed)
-        self.citizenship_box = _choice(settings.CITIZENSHIP)  # optional: rare jobs ask for it (spec section 25)
 
         self.language_rows: list[LanguageRow] = []
         self.languages_box = QWidget()
@@ -188,9 +187,7 @@ class SettingsForm(QObject):
                        ("City", self.city_box), ("", self.remote_check), ("Level", level_row),
                        ("", _text("muted", "You can pick several"))],
             "languages": [("Education", self.education_box), ("Experience", self.experience_box),
-                          ("", _text("muted", "Commercial work experience")), ("Spoken", self.languages_box),
-                          ("Citizenship", self.citizenship_box),
-                          ("", _text("muted", "Some jobs, e.g. in state security, ask for Czech or EU citizenship"))],
+                          ("", _text("muted", "Commercial work experience")), ("Spoken", self.languages_box)],
         }
 
     def page(self, name: str) -> QWidget:
@@ -238,8 +235,7 @@ class SettingsForm(QObject):
         for index, area in enumerate(settings.AREAS):
             self.area_buttons.button(index).setChecked(area in s.areas)
         self.area_buttons.blockSignals(False)
-        for box, value in ((self.education_box, s.education), (self.experience_box, s.experience),
-                           (self.citizenship_box, s.citizenship)):
+        for box, value in ((self.education_box, s.education), (self.experience_box, s.experience)):
             box.blockSignals(True)
             box.setCurrentIndex(max(box.findData(value), 0))
             box.blockSignals(False)
@@ -260,7 +256,6 @@ class SettingsForm(QObject):
                                if self.level_buttons.button(index).isChecked()],
                        languages=languages, education=self.education_box.currentData() or "",
                        experience=self.experience_box.currentData() or "",
-                       citizenship=self.citizenship_box.currentData() or "",
                        areas=[area for index, area in enumerate(settings.AREAS)
                               if self.area_buttons.button(index).isChecked()])
 

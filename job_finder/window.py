@@ -385,8 +385,9 @@ class MainWindow(QMainWindow):
             self.v_grid.takeAt(0).widget().setParent(None)  # off the window now, not after deleteLater
         self.v_conditions = []
         for row, condition in enumerate(evaluation.get("conditions", [])):
-            mark = QLabel("✓" if condition["ok"] else "✕")
-            mark.setStyleSheet(f"color: {style.MATCH_COLORS['yes' if condition['ok'] else 'no']}; font-weight: 700;")
+            kind = "similar" if condition.get("warn") else "yes" if condition["ok"] else "no"  # amber: a warning
+            mark = QLabel({"similar": "⚠", "yes": "✓", "no": "✕"}[kind])
+            mark.setStyleSheet(f"color: {style.MATCH_COLORS[kind]}; font-weight: 700;")
             name = _label()
             name.setText(condition["name"])
             name.setStyleSheet("font-weight: 600;")

@@ -320,21 +320,17 @@ def _language(extraction: dict, ad: str, s: Settings) -> dict:
     return _condition("Language", False, f"{text} · you: {have}", f"Requires {text}")
 
 
-def _citizenship(extraction: dict, ad: str, s: Settings) -> dict:
+def _citizenship(extraction: dict, ad: str) -> dict:
     """The citizenship the ad requires (spec section 25): the model names it, the ad must write it, and not only in
-    "we don't discriminate by … citizenship"."""
+    "we don't discriminate by … citizenship". A warning, not a rule-out: the card says it, the score stays."""
     said = re.sub(r"\s*citizen\w*", "", _clean(extraction.get("citizenship")), flags=re.IGNORECASE).strip()
     written = any(not NOT_A_REQUIREMENT.search(_sentence(ad, m.start(), m.end()))
                   for m in CITIZENSHIP_WORDS.finditer(ad))
     if not said or said.lower() in ("none", "not stated", "no") or not written:
-        return _condition("Citizenship", True, "Not asked")
-    kind = "czech" if re.search(r"czech|česk|\bčr\b", said, re.IGNORECASE) else \
-        "eu" if re.search(r"\beu\b|europ", said, re.IGNORECASE) else "other"
-    label = {"czech": "Czech citizenship", "eu": "EU citizenship"}.get(kind, f"{said} citizenship")
-    if s.citizenship == "czech" or (kind == "eu" and s.citizenship == "eu"):
-        return _condition("Citizenship", True, label)
-    have = settings.CITIZENSHIP.get(s.citizenship, "not set in Settings")
-    return _condition("Citizenship", False, f"{label} required · you: {have}", f"Requires {label}")
+        return {**_condition("Citizenship", True, "Not asked"), "warn": False}
+    label = ("Czech citizenship" if re.search(r"czech|česk|\bčr\b", said, re.IGNORECASE) else
+             "EU citizenship" if re.search(r"\beu\b|europ", said, re.IGNORECASE) else f"{said} citizenship")
+    return {**_condition("Citizenship", True, f"{label} required", f"Requires {label}"), "warn": True}
 
 
 def _location(extraction: dict, s: Settings) -> dict:
@@ -402,7 +398,7 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
     nice = _skills(extraction.get("nice_to_have"), False, named, known, cv_text)
     must += _title_skills(must, nice, job, known)
     conditions = [_degree(extraction, ad, s), _experience(extraction, ad, s), _level(extraction, job, s),
-                  _language(extraction, ad, s), _citizenship(extraction, ad, s), _location(extraction, s),
+                  _language(extraction, ad, s), _citizenship(extraction, ad), _location(extraction, s),
                   _area(extraction, s)]
     failed = [c for c in conditions[:-1] if not c["ok"]]
     must_share = sum(MATCH[i["match"]] for i in must) / len(must) if must else 0.0
@@ -432,6 +428,9 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
         name, score, reason = WORTH, 7 if share >= 0.6 else 6, count
     else:
         name, score, reason = STRETCH, 5 if share >= 0.3 else 4, count
+    warnings = [c["reason"] for c in conditions if c.get("warn")]
+    if warnings and name not in (OUT, OTHER):  # the job stays, but the verdict line says what to check first
+        reason = " · ".join([reason.removesuffix(" · all conditions met"), *(f"⚠ {w}" for w in warnings)])
     about = _clean(extraction.get("about"))
     return {
         "verdict": name, "score": score, "reason": reason, "conditions": conditions, "must": must, "nice": nice,
@@ -439,5 +438,5 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
         # What the Insights tab and older parts of the app read
         "summary": about, "have": [i["skill"] for i in must + nice if i["match"] != "no"],
         "missing": [i["skill"] for i in must + nice if i["match"] == "no"],
-        "risks": [c["reason"] for c in conditions if not c["ok"]],
+        "risks": [c["reason"] for c in conditions if not c["ok"] or c.get("warn")],
     }
