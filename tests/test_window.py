@@ -1321,7 +1321,8 @@ def test_card_shows_the_verdict_band_conditions_and_skills(window):
     assert window.v_title.text() == "STRONG FIT · 8/10"
     assert window.v_reason.text() == "3 of 3 must-haves · 0 of 2 nice-to-haves · all conditions met"
     assert [(mark.text(), name.text()) for mark, name, _ in window.v_conditions] == [
-        ("✓", "Degree"), ("✓", "Experience"), ("✓", "Level"), ("✓", "Language"), ("✓", "Location"), ("✓", "Area")]
+        ("✓", "Degree"), ("✓", "Experience"), ("✓", "Level"), ("✓", "Language"), ("✓", "Citizenship"),
+        ("✓", "Location"), ("✓", "Area")]
     assert window.v_conditions[2][2].text() == "Junior"
     assert window.v_must_caption.text() == "MUST-HAVE · 3 of 3"
     assert [chip.accessibleName() for chip in window.v_must_chips] == [

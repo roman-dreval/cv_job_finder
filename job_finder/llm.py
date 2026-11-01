@@ -33,14 +33,15 @@ SCHEMA = {
             "required": ["language", "level"],
             "additionalProperties": False,
         }},
+        "citizenship": {"type": "string"},
         "workplace": {"type": "string", "enum": ["office", "hybrid", "remote", "not stated"]},
         "place": {"type": "string"},
         "must_have": _SKILLS,
         "nice_to_have": _SKILLS,
         "about": {"type": "string"},
     },
-    "required": ["areas", "seniority", "min_years", "degree", "students_welcome", "languages", "workplace", "place",
-                 "must_have", "nice_to_have", "about"],
+    "required": ["areas", "seniority", "min_years", "degree", "students_welcome", "languages", "citizenship",
+                 "workplace", "place", "must_have", "nice_to_have", "about"],
     "additionalProperties": False,
 }
 
@@ -58,6 +59,9 @@ Answer with a JSON object:
 - students_welcome — true if the ad welcomes students or fresh graduates;
 - languages — the spoken languages the ad requires, each with its level (A1 to C2, native, or "not stated");
 - workplace — office, hybrid, remote, or "not stated";
+- citizenship — the citizenship the ad requires of the candidate: "Czech", "EU", another country ("US"), or
+  "none"; "none" also when the company only says it doesn't discriminate by citizenship, or asks for a work
+  permit;
 - place — the city of the office, or the countries or regions a remote job is open to; "" if not stated;
 - must_have — every skill, technology and field of knowledge the ad requires of the candidate, at most 8, the
   core of the role first;

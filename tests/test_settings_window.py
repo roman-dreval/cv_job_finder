@@ -196,6 +196,16 @@ def test_saving_asks_nothing_even_for_a_new_cv(app, cv, monkeypatch, tmp_path):
     assert settings.load().cv_path == str(other) and settings.cv_text(settings.load()) == "Python and SQL developer"
 
 
+def test_citizenship_is_told_on_the_about_you_page(app, cv):
+    dialog = SettingsDialog(use_settings(cv))
+    box = dialog.form.citizenship_box
+    assert box.currentData() == "" and dialog.save_button.isEnabled()  # not told yet: nothing blocks Save
+    box.setCurrentIndex(box.findData("eu"))
+    dialog.save_button.click()
+    assert settings.load().citizenship == "eu"
+    assert SettingsDialog(settings.load()).form.citizenship_box.currentText() == "Another EU country"
+
+
 def test_save_keeps_hidden_thresholds(app, cv):
     dialog = SettingsDialog(use_settings(cv, min_score=7, stale_days=10, stale_job_days=30))
     add_skill(dialog.form, "SQL")

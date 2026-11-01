@@ -25,6 +25,7 @@ EDUCATION = {"none": "No degree", "studying": "Studying, no degree yet", "bachel
              "master": "Master's", "phd": "PhD"}
 EXPERIENCE = {"none": "None", "under1": "Under 1 year", "1-2": "1–2 years", "3-5": "3–5 years",
               "5plus": "More than 5 years"}
+CITIZENSHIP = {"czech": "Czech", "eu": "Another EU country", "other": "Outside the EU"}  # spec section 25
 AREAS = ["Backend", "Frontend", "Full-stack", "Mobile", "Data / analytics", "Machine learning / AI", "DevOps / cloud",
          "QA / testing", "Embedded / hardware", "Security", "IT support / admin"]
 # Skills that suggest an area for the wizard's first guess
@@ -71,6 +72,7 @@ class Settings:
     languages: dict[str, str] = field(default_factory=lambda: {"English": ""})
     education: str = ""  # one of EDUCATION; "" = not chosen yet
     experience: str = ""  # one of EXPERIENCE: commercial work experience
+    citizenship: str = ""  # one of CITIZENSHIP; "" = not told: a job that requires a citizenship is out of reach
     areas: list[str] = field(default_factory=list)  # of AREAS: the kinds of work wanted
     model: str = ""  # the AI model; "" = the one that fits the graphics card (hardware.default_model)
     min_score: int = 5

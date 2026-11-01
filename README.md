@@ -140,8 +140,9 @@ installs into your user folder and adds shortcuts to the desktop and the Start m
 - **How a job gets its verdict:** the AI reads only the ad, never your CV: the skills it requires and the ones
   it welcomes, as the ad writes them, and the degree, years of experience, level, languages and place. The app
   then marks each skill ✓ (in your CV), ≈ (a similar skill, like Flask for FastAPI, or a part of it) or ✕, and
-  checks six conditions against your profile: degree, experience, level, language (its level read from the ad's
-  own words), location and area. One that you don't meet makes the job **Out of reach**, and the card says
+  checks seven conditions against your profile: degree, experience, level, language (its level read from the
+  ad's own words), citizenship (some jobs ask for Czech or EU citizenship: tell yours in Settings → About you),
+  location and area. One that you don't meet makes the job **Out of reach**, and the card says
   which; another area keeps it aside. Otherwise the skills decide: **Strong fit**, **Worth a try** or
   **Stretch**. Required skills make 80 % of it and welcome ones a 20 % bonus; an ad that names fewer than three
   requirements is at most Worth a try.

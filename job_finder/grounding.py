@@ -61,6 +61,10 @@ LEVEL_WORDS = [("NATIVE", r"native|mother tongue|rodil\w*"),
                       r"pracovn\w*"),
                ("A2", r"basic|elementary|základn\w*")]
 LEVEL_NEAR, NATIVE_NEAR = 40, 12  # characters
+CITIZENSHIP_WORDS = re.compile(r"občanstv\w*|státní(?:ho|m)? občan\w*|státní příslušnost\w*|citizen\w*",
+                               re.IGNORECASE)
+NOT_A_REQUIREMENT = re.compile(r"regardless|without regard|bez ohledu|discriminat\w*|diskrimin\w*|"
+                               r"equal (?:employment )?opportunit\w*|national origin|protected", re.IGNORECASE)
 WELCOMED = re.compile(r"výhod\w*|advantage\w*|a plus|nice[- ]to[- ]have|preferred|welcome\w*|vítan\w*|uvítáme|"
                       r"bonus\w*|není podmínkou|not required|not essential|optional", re.IGNORECASE)
 # The conditions' own facts are no skills: a degree, studies, a spoken language
@@ -316,6 +320,23 @@ def _language(extraction: dict, ad: str, s: Settings) -> dict:
     return _condition("Language", False, f"{text} · you: {have}", f"Requires {text}")
 
 
+def _citizenship(extraction: dict, ad: str, s: Settings) -> dict:
+    """The citizenship the ad requires (spec section 25): the model names it, the ad must write it, and not only in
+    "we don't discriminate by … citizenship"."""
+    said = re.sub(r"\s*citizen\w*", "", _clean(extraction.get("citizenship")), flags=re.IGNORECASE).strip()
+    written = any(not NOT_A_REQUIREMENT.search(_sentence(ad, m.start(), m.end()))
+                  for m in CITIZENSHIP_WORDS.finditer(ad))
+    if not said or said.lower() in ("none", "not stated", "no") or not written:
+        return _condition("Citizenship", True, "Not asked")
+    kind = "czech" if re.search(r"czech|česk|\bčr\b", said, re.IGNORECASE) else \
+        "eu" if re.search(r"\beu\b|europ", said, re.IGNORECASE) else "other"
+    label = {"czech": "Czech citizenship", "eu": "EU citizenship"}.get(kind, f"{said} citizenship")
+    if s.citizenship == "czech" or (kind == "eu" and s.citizenship == "eu"):
+        return _condition("Citizenship", True, label)
+    have = settings.CITIZENSHIP.get(s.citizenship, "not set in Settings")
+    return _condition("Citizenship", False, f"{label} required · you: {have}", f"Requires {label}")
+
+
 def _location(extraction: dict, s: Settings) -> dict:
     workplace = extraction.get("workplace")
     place = _clean(extraction.get("place"))
@@ -381,7 +402,8 @@ def verdict(extraction: dict, job: Job, cv_text: str, s: Settings) -> dict:
     nice = _skills(extraction.get("nice_to_have"), False, named, known, cv_text)
     must += _title_skills(must, nice, job, known)
     conditions = [_degree(extraction, ad, s), _experience(extraction, ad, s), _level(extraction, job, s),
-                  _language(extraction, ad, s), _location(extraction, s), _area(extraction, s)]
+                  _language(extraction, ad, s), _citizenship(extraction, ad, s), _location(extraction, s),
+                  _area(extraction, s)]
     failed = [c for c in conditions[:-1] if not c["ok"]]
     must_share = sum(MATCH[i["match"]] for i in must) / len(must) if must else 0.0
     nice_share = sum(MATCH[i["match"]] for i in nice) / len(nice) if nice else must_share

@@ -175,6 +175,8 @@ def test_the_rules_ask_for_the_ads_facts_without_the_candidate():
     areas = properties["areas"]["items"]["enum"]
     assert areas[:2] == ["Backend", "Frontend"] and "Not IT" in areas
     assert properties["degree"]["enum"] == list(grounding.DEGREES)
+    assert properties["citizenship"] == {"type": "string"} and "citizenship — the citizenship" in rules
+    assert "doesn't discriminate" in rules
     for key in ("must_have", "nice_to_have"):  # the ad's words; the program decides what the CV has
         assert properties[key] == {"type": "array", "items": {"type": "string"}, "maxItems": 8}
     assert set(llm.SCHEMA["required"]) == set(properties)
