@@ -192,6 +192,9 @@ def evaluate(job: Job, rules: str, facts: str = "") -> dict:
             ],
             "temperature": 0,
             "max_tokens": 900,
+            # No thinking: the model only copies facts out of the ad; Gemma 4 thinks by default, which took 30 s a
+            # job and the whole token budget, leaving no answer (LM Studio ignores the flag for other models)
+            "reasoning_effort": "none",
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "evaluation", "strict": True, "schema": SCHEMA},

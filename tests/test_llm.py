@@ -41,6 +41,7 @@ def test_evaluate_sends_only_the_truncated_ad(monkeypatch):
     assert body["model"] == config.MODEL_ID
     assert body["response_format"]["type"] == "json_schema"
     assert body["messages"][0]["content"] == "RULES-TEXT"  # no CV: the model can't list the candidate's skills
+    assert body["reasoning_effort"] == "none"  # no thinking: it ate the whole answer of Gemma 4 and took 30 s
     user = body["messages"][1]["content"]
     assert "Python Dev" in user and "ACME" in user and "Prague" in user
     assert user.count("x") == config.MAX_DESCRIPTION_CHARS
