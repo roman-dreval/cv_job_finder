@@ -65,10 +65,10 @@ Answer with a JSON object:
   at most 8;
   write each as the ad names it, in a few words. Alternatives the ad offers ("Python or SQL", "at least one
   language such as C# or Java") are one item: write them together with "or". Take them only from what the ad
-  requires of the candidate, never from its duties ("what you'll do", "responsibilities"): not what the person
-  will do or learn in the job, nor what the company does or uses, nor an interest it hopes for ("interest in
-  banking", "curiosity about AI"). Soft skills, years of experience, degrees and fields of study, and spoken
-  languages are not skills here.
+  requires of the candidate, never from its duties ("what you'll do", "responsibilities"):
+  not what the person will do or learn in the job, nor what the company does or uses,
+  nor an interest it hopes for ("interest in banking", "curiosity about AI").
+  Soft skills, years of experience, degrees and fields of study, and spoken languages are not skills here.
 - about — one sentence: what the person will do in this job.
 Write all texts in English, as plain text without Markdown.
 """.format(areas=", ".join(AREAS))
