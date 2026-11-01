@@ -963,6 +963,23 @@ def test_gone_job_shown_muted_with_a_note(window):
     assert window.d_gone.isHidden()
 
 
+def test_hide_removed_takes_gone_jobs_out_of_the_list(window, app):
+    add_found("a", 8)
+    add_found("b", 7)
+    db.save_jobs("src-a", [])  # "a" is no longer in its source's list
+    window.load_rows()
+    assert sorted(titles(window)) == ["Job a", "Job b"] and not window.hide_gone_button.isChecked()
+    window.hide_gone_button.click()
+    assert titles(window) == ["Job b"] and window.found_tab.text() == "Found · 1"
+    assert settings.load().hide_gone  # remembered
+    again = MainWindow()
+    again.freshness_buttons.button(3).click()
+    assert again.hide_gone_button.isChecked() and titles(again) == ["Job b"]
+    again.hide_gone_button.click()
+    assert sorted(titles(again)) == ["Job a", "Job b"] and not settings.load().hide_gone
+    again.deleteLater()
+
+
 def test_gone_remote_job_hidden_when_remote_is_off(window):
     s = use_settings(config.CV_PATH)
     key = worker.read_cv(s)[1]

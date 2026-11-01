@@ -73,6 +73,7 @@ class Settings:
     experience: str = ""  # one of EXPERIENCE: commercial work experience
     areas: list[str] = field(default_factory=list)  # of AREAS: the kinds of work wanted
     model: str = ""  # the AI model; "" = the one that fits the graphics card (hardware.default_model)
+    hide_gone: bool = False  # the list hides jobs their site no longer lists (the Hide removed button)
     min_score: int = 5
     stale_days: int = 14
     stale_job_days: int = 21

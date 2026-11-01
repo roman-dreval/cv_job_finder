@@ -45,7 +45,7 @@ must-haves". The AI reads only the ad, the app checks it against your CV.
 
 ⭐ **The good ones first**<br>
 Jobs scored 5 or more, best first, new ones marked. Jobs that don't mention your skills or are older
-than a month are skipped.
+than a month are skipped. **Hide removed** hides the ones their site no longer lists.
 
 </td>
 <td valign="top">

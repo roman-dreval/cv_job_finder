@@ -1,6 +1,7 @@
 """Main window: found jobs and applications, a card with the selected job's analysis."""
 import html
 import time
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -638,6 +639,12 @@ class MainWindow(QMainWindow):
             group.button(default).setChecked(True)
             group.idClicked.connect(self.render)
             head.addLayout(segment)
+        self.hide_gone_button = QPushButton("Hide removed")
+        self.hide_gone_button.setCheckable(True)
+        self.hide_gone_button.setObjectName("toggleChip")
+        self.hide_gone_button.setToolTip("Hide the jobs their site no longer lists")
+        self.hide_gone_button.toggled.connect(self.toggle_hide_gone)
+        head.addWidget(self.hide_gone_button)
         self.no_match = QLabel("No jobs match the filters", alignment=Qt.AlignCenter)
         self.no_match.setObjectName("empty")
         self.found_pages = QStackedWidget()  # 0: the table, 1: nothing passes the filters
@@ -830,6 +837,9 @@ class MainWindow(QMainWindow):
     def load_rows(self) -> None:
         """Re-read found jobs (scored under the current CV) and applications from the database."""
         self.settings = settings.load()
+        self.hide_gone_button.blockSignals(True)  # the saved choice, without saving it again
+        self.hide_gone_button.setChecked(bool(self.settings and self.settings.hide_gone))
+        self.hide_gone_button.blockSignals(False)
         cv = read_cv(self.settings)
         if cv:  # also jobs their source stopped listing in the last week: muted, with a note to check the link
             self.rows = db.list_jobs(cv[1], self.settings.min_score, config.GONE_DAYS)
@@ -857,6 +867,8 @@ class MainWindow(QMainWindow):
         days = freshness.FRESHNESS[self.freshness_buttons.checkedId()][2]
         order = freshness.ORDERS[self.order_buttons.checkedId()]
         self.visible = freshness.visible_rows(self.rows, self.search.text(), days, order, today)
+        if self.hide_gone_button.isChecked():  # Hide removed: the jobs their site no longer lists
+            self.visible = [row for row in self.visible if not row.get("gone_at")]
 
         def values(row):
             title = (REPOST_MARK if self._previous_application(row) else "") + row["title"]
@@ -1055,6 +1067,14 @@ class MainWindow(QMainWindow):
         self.unapply_button.setVisible(is_application)
         for status, button in self.status_buttons.items():
             button.setVisible(is_application and status != row["status"])
+
+    def toggle_hide_gone(self, checked: bool) -> None:
+        """Hide removed: remembered in the settings (only this field: the rest may have been saved meanwhile)."""
+        current = settings.load()
+        if current is not None:
+            settings.save(replace(current, hide_gone=checked))
+            self.settings = replace(current, hide_gone=checked)
+        self.render()
 
     def toggle_description(self) -> None:
         self.description_open = not self.description_open
