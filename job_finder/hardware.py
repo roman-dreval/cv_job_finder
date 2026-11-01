@@ -3,7 +3,7 @@ from job_finder import config
 
 # Display adapters in the registry: each has its memory size, also for AMD and Intel cards
 ADAPTERS_KEY = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
-SMALL_CARD_GB = 7.5  # an 8 GB card reports a bit less than 8
+SMALL_CARD_GB = 9.5  # the 12B model takes about 9 GB with its context; a 10 GB card reports a bit less than 10
 
 
 def _registry_sizes() -> list:

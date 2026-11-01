@@ -103,10 +103,10 @@ def test_fingerprint_uses_model(monkeypatch):
     s = Settings(cv_path="a", skills=["Python"], main_skill="Python", languages={"English": "B2"})
     assert llm.model_name(s) == config.MODEL  # chosen by the graphics card (12 GB in the tests' fixture)
     assert llm.fingerprint(s) == f"{config.MODEL}\n{llm.render_rules(s)}"  # the author's key stays the same
-    small = replace(s, model="mistralai/ministral-3-3b")
-    assert llm.model_name(small) == "mistralai/ministral-3-3b" and llm.fingerprint(small) != llm.fingerprint(s)
-    monkeypatch.setattr(hardware, "default_model", lambda: "mistralai/ministral-3-3b")  # a 6 GB card
-    assert llm.model_name(s) == "mistralai/ministral-3-3b"
+    small = replace(s, model="google/gemma-4-e4b")
+    assert llm.model_name(small) == "google/gemma-4-e4b" and llm.fingerprint(small) != llm.fingerprint(s)
+    monkeypatch.setattr(hardware, "default_model", lambda: "google/gemma-4-e4b")  # a 6 GB card
+    assert llm.model_name(s) == "google/gemma-4-e4b"
 
 
 def test_prepare_reloads_another_model(tmp_path, monkeypatch):
@@ -118,15 +118,15 @@ def test_prepare_reloads_another_model(tmp_path, monkeypatch):
 
     def fake_run(args, **kwargs):
         calls.append(args[1:])
-        out = (f'[{{"identifier": "{config.MODEL_ID}", "modelKey": "mistralai/ministral-3-8b"}}]'
+        out = (f'[{{"identifier": "{config.MODEL_ID}", "modelKey": "google/gemma-4-12b"}}]'
                if args[1] == "ps" else "")
         return subprocess.CompletedProcess(args, 0, stdout=out, stderr="")
 
     monkeypatch.setattr(llm.subprocess, "run", fake_run)
-    llm.prepare("mistralai/ministral-3-3b")  # another model is loaded under our name
-    assert [call[0] for call in calls] == ["ps", "unload", "load"] and calls[2][1] == "mistralai/ministral-3-3b"
+    llm.prepare("google/gemma-4-e4b")  # another model is loaded under our name
+    assert [call[0] for call in calls] == ["ps", "unload", "load"] and calls[2][1] == "google/gemma-4-e4b"
     calls.clear()
-    llm.prepare("mistralai/ministral-3-8b")  # the right one is loaded already
+    llm.prepare("google/gemma-4-12b")  # the right one is loaded already
     assert [call[0] for call in calls] == ["ps"]
 
 
@@ -136,11 +136,11 @@ def test_downloaded_models_reads_lms_output_from_a_file(monkeypatch):
 
     def fake_run(args, **kwargs):
         seen.update(kwargs)
-        kwargs["stdout"].write('[{"type": "llm", "modelKey": "mistralai/ministral-3-8b"}]')
+        kwargs["stdout"].write('[{"type": "llm", "modelKey": "google/gemma-4-12b"}]')
         return subprocess.CompletedProcess(args, 0)
 
     monkeypatch.setattr(llm.subprocess, "run", fake_run)
-    assert llm.downloaded_models() == {"mistralai/ministral-3-8b"}
+    assert llm.downloaded_models() == {"google/gemma-4-12b"}
     assert hasattr(seen["stdout"], "fileno") and seen["stdout"] is not subprocess.PIPE and "capture_output" not in seen
 
 

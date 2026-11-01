@@ -78,7 +78,7 @@ def test_key_changes_with_the_model_and_rules_only(setup):
     assert worker.read_cv(replace(s, main_skill="Go", skills=["Go"]))[1] == key
     Path(s.cv_path).write_text("Senior SQL developer", encoding="utf-8")  # temporary CV from the fixture
     assert worker.read_cv(s)[1] == key
-    assert worker.scoring_key(replace(s, model="mistralai/ministral-3-3b")) != key
+    assert worker.scoring_key(replace(s, model="google/gemma-4-e4b")) != key
     assert worker.read_cv(None) is None
 
 

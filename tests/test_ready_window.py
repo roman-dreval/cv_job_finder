@@ -58,7 +58,8 @@ def test_without_lm_studio(app, machine, monkeypatch):
 
 def test_download_model(app, machine):
     dialog = ReadyDialog(MODEL)
-    assert "Ministral 3 8B" in dialog.panel.model_status.text() and "12 GB" in dialog.panel.model_status.text()
+    assert "Gemma 4 12B" in dialog.panel.model_status.text() and "12 GB" in dialog.panel.model_status.text()
+    assert "about 7.5 GB" in dialog.panel.model_status.text()
     assert dialog.continue_button.text() == "Continue anyway"
     dialog.panel.download_button.click()
     assert machine["downloads"] == [MODEL]
@@ -76,7 +77,8 @@ def test_failed_download_can_be_retried(app, machine):
 def test_small_model_is_explained(app, machine):
     machine["vram"] = 6.0
     dialog = ReadyDialog(config.SMALL_MODEL)
-    assert "Ministral 3 3B" in dialog.panel.model_status.text() and "weaker" in dialog.panel.model_note.text()
+    assert "Gemma 4 E4B" in dialog.panel.model_status.text() and "weaker" in dialog.panel.model_note.text()
+    assert "under 10 GB" in dialog.panel.model_note.text()
 
 
 def test_dialog_is_freed(app, machine):
@@ -98,10 +100,10 @@ def test_model_file_present(tmp_path, monkeypatch):
     (tmp_path / ".lmstudio").mkdir()
     (tmp_path / ".lmstudio" / "settings.json").write_text(
         '{"downloadsFolder": "' + str(models).replace("\\", "\\\\") + '"}', encoding="utf-8")
-    folder = models / "lmstudio-community" / "Ministral-3-8B-Instruct-2512-GGUF"
+    folder = models / "lmstudio-community" / "gemma-4-12B-it-GGUF"  # as LM Studio downloads it
     folder.mkdir(parents=True)
-    (folder / "mmproj-Ministral-3-3B-Instruct-2512-F16.gguf").write_text("")  # a helper file, not the model
-    (folder / "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf").write_text("")
+    (folder / "mmproj-gemma-4-E4B-it-BF16.gguf").write_text("")  # a helper file, not the model
+    (folder / "gemma-4-12B-it-Q4_K_M.gguf").write_text("")
     assert lmstudio.model_file_present(config.MODEL)
     assert not lmstudio.model_file_present(config.SMALL_MODEL)
     (tmp_path / ".lmstudio" / "settings.json").unlink()  # no settings: the default folder, which is empty

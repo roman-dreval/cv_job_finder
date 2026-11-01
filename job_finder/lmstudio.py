@@ -7,7 +7,7 @@ from pathlib import Path
 
 from job_finder import config, llm
 
-MODEL_FILES = {config.MODEL: "ministral-3-8b", config.SMALL_MODEL: "ministral-3-3b"}  # how the model's file starts
+MODEL_FILES = {config.MODEL: "gemma-4-12b", config.SMALL_MODEL: "gemma-4-e4b"}  # how the model's file starts
 downloading = False  # a model download runs right now (set by the app's one downloader)
 
 

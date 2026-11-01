@@ -4,10 +4,10 @@ GIB = 2 ** 30
 
 
 def test_model_for_vram():
-    assert hardware.model_for_vram(12.0) == "mistralai/ministral-3-8b"
-    assert hardware.model_for_vram(7.9) == "mistralai/ministral-3-8b"  # an 8 GB card reports a bit less
-    assert hardware.model_for_vram(6.0) == "mistralai/ministral-3-3b"
-    assert hardware.model_for_vram(None) == "mistralai/ministral-3-8b"  # unknown: the usual model
+    assert hardware.model_for_vram(12.0) == "google/gemma-4-12b"
+    assert hardware.model_for_vram(9.9) == "google/gemma-4-12b"  # a 10 GB card reports a bit less
+    assert hardware.model_for_vram(7.9) == "google/gemma-4-e4b"  # 8 GB: the 12B with its context doesn't fit
+    assert hardware.model_for_vram(None) == "google/gemma-4-12b"  # unknown: the usual model
 
 
 def test_vram_from_registry_values():

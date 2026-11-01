@@ -12,7 +12,7 @@ from job_finder.hardware import vram_gb
 from job_finder.window import _label
 
 LM_STUDIO_URL = "https://lmstudio.ai"
-MODEL_INFO = {config.MODEL: ("Ministral 3 8B", "about 6 GB"), config.SMALL_MODEL: ("Ministral 3 3B", "about 3 GB")}
+MODEL_INFO = {config.MODEL: ("Gemma 4 12B", "about 7.5 GB"), config.SMALL_MODEL: ("Gemma 4 E4B", "about 6 GB")}
 
 
 def start_thread(target) -> None:
@@ -129,8 +129,8 @@ class ReadyPanel(QWidget):
         card = f" (your graphics card has {gb:g} GB)" if gb else ""
         self.model_status.setText(f"✓ AI model: {self.name}{card}" if downloaded
                                   else f"✕ AI model not downloaded: {self.name}, {self.size}{card}")
-        self.model_note.setText("A smaller model for graphics cards under 8 GB: it is weaker, the scores may differ "
-                                "a bit." if self.model == config.SMALL_MODEL else "")
+        self.model_note.setText("A smaller model for graphics cards under 10 GB: it is weaker, the verdicts may "
+                                "differ a bit." if self.model == config.SMALL_MODEL else "")
         self.model_note.setVisible(self.model == config.SMALL_MODEL)
         self.download_button.setVisible(not downloaded)
         self.download_button.setEnabled(installed and not downloader().running)
